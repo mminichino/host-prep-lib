@@ -5,6 +5,7 @@ import logging
 import warnings
 import sys
 import ansible_runner
+from overrides import override
 from pyhostprep.software import SoftwareManager
 from pyhostprep.cli import CLI, StreamToLogger
 from pyhostprep import get_playbook_file
@@ -17,14 +18,11 @@ class BundleMgrCLI(CLI):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.options = None
 
-    def process_args(self):
+    @override()
+    def local_args(self):
         self.parser.add_argument('-b', '--bundles', nargs='+', help='List of bundles to deploy')
-        self.parser.add_argument('-d', '--debug', action='store_true', help="Debug output")
-        self.parser.add_argument('-v', '--verbose', action='store_true', help="Verbose output")
         self.parser.add_argument('-c', '--cbs', action='store', help="Couchbase Server Version String")
-        self.options = self.parser.parse_args()
 
     def is_time_synced(self):
         return self.host_info.system.is_running("ntp") \

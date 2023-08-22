@@ -89,6 +89,7 @@ class CLI(object):
         debug_file = os.environ.get("DEBUG_FILE", default_debug_file)
         self.args = args
         self.parser = None
+        self.options = None
         self.config = get_config_file("packages.json")
         self.data = get_data_dir()
         self.op = SoftwareBundle(self.config)
@@ -100,6 +101,8 @@ class CLI(object):
         if self.args is None:
             self.args = sys.argv
 
+        self.init_parser()
+
         if sys.stdin and sys.stdin.isatty():
             screen_handler = logging.StreamHandler()
             screen_handler.setFormatter(CustomDisplayFormatter())
@@ -109,17 +112,34 @@ class CLI(object):
         file_handler.setFormatter(CustomLogFormatter())
         logger.addHandler(file_handler)
 
+        logger.setLevel(logging.INFO)
+
+        self.process_args()
+
     @staticmethod
     def run_timestamp(label: str):
         timestamp = datetime.utcnow().strftime("%b %d %H:%M:%S")
         logger.info(f" ==== Run {label} {timestamp} ====")
 
+    def ansible_galaxy_install(self):
+        self.galaxy_executor(["ansible-galaxy", "collection", "install", "community.general"])
+        self.galaxy_executor(["ansible-galaxy", "collection", "install", "ansible.posix"])
+
     @staticmethod
-    def ansible_galaxy_install():
-        args = ["ansible-galaxy", "collection", "install", "community.general"]
-        GalaxyCLI.cli_executor(args)
-        args = ["ansible-galaxy", "collection", "install", "ansible.posix"]
-        GalaxyCLI.cli_executor(args)
+    def galaxy_executor(args):
+        galaxy = GalaxyCLI(args)
+        galaxy.run()
 
     def init_parser(self):
         self.parser = argparse.ArgumentParser(add_help=False)
+        self.parser.add_argument('-d', '--debug', action='store_true', help="Debug output")
+        self.parser.add_argument('-v', '--verbose', action='store_true', help="Verbose output")
+
+    def local_args(self):
+        pass
+
+    def process_args(self):
+        self.local_args()
+        self.options = self.parser.parse_args()
+        if self.options.debug:
+            logger.setLevel(logging.DEBUG)

@@ -8,4 +8,5 @@ ansible>=6.7.0
 ansible-runner>=2.3.3
 requests>=2.31.0
 urllib3==1.26.16
+overrides>=7.4.0
 bumpversion>=0.6.0

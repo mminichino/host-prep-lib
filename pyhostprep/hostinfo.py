@@ -1,7 +1,7 @@
 ##
 ##
 
-from hostpreplib.command import RunShellCommand, ShellCommandError
+from pyhostprep.command import RunShellCommand, ShellCommandError
 from io import BytesIO
 from typing import Optional, List
 import attr

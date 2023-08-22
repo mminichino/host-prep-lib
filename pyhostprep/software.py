@@ -7,8 +7,8 @@ from requests.adapters import HTTPAdapter
 import re
 import json
 import warnings
-from hostpreplib.bundles import SoftwareBundle
-from hostpreplib.retry import retry
+from pyhostprep.bundles import SoftwareBundle
+from pyhostprep.retry import retry
 
 
 class SoftwareManager(object):
