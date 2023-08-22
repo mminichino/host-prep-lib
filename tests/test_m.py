@@ -17,7 +17,7 @@ class Params(object):
     def __init__(self):
         parser = argparse.ArgumentParser()
         parser.add_argument("--container", action="store", help="Container", default="redhat/ubi8")
-        parser.add_argument("--script", action="store", help="Script", default="python_setup.sh")
+        parser.add_argument("--script", action="store", help="Script", default="setup.sh")
         parser.add_argument("--log", action="store", help="Script", default="setup.log")
         parser.add_argument("--run", action="store_true")
         parser.add_argument("--start", action="store_true")
@@ -45,7 +45,6 @@ def manual_1(args: argparse.Namespace):
         container_mkdir(container_id, destination)
         copy_git_to_container(container_id, parent, destination)
         run_in_container(container_id, destination, ["bin/setup.sh", "-s"])
-        stop_container(container_id)
     except Exception:
         raise
 
