@@ -1,0 +1,22 @@
+---
+- hosts: localhost
+  gather_facts: no
+  name: Disable THP
+  tasks:
+    - name: Packages
+      ansible.builtin.package:
+        name:
+          - chkconfig
+    - name: Copy Init Script
+      ansible.builtin.copy:
+        src: "{{ package_root }}/config/disable-thp"
+        dest: /etc/init.d/disable-thp
+        owner: root
+        group: root
+        mode: '0755'
+    - name: Configure Init Script
+      ansible.builtin.shell:
+        cmd: chkconfig --add disable-thp
+    - name: Run Init Script
+      ansible.builtin.shell:
+        cmd: /etc/init.d/disable-thp

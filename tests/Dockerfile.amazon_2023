@@ -1,0 +1,6 @@
+# Dockerfile
+
+FROM amazonlinux:2023
+RUN yum install -q -y systemd
+COPY test/chrony /etc/default/chrony
+COPY test/chronyd /etc/sysconfig/chronyd

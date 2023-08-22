@@ -1,0 +1,11 @@
+---
+- hosts: localhost
+  gather_facts: no
+  name: Disable Service
+  tasks:
+    - name: Firewall
+      ansible.builtin.systemd:
+        state: stopped
+        enabled: false
+        name: firewalld
+      when: firewalld_enabled|bool

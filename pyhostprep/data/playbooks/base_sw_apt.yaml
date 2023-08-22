@@ -1,0 +1,24 @@
+---
+- hosts: localhost
+  gather_facts: no
+  name: Install
+  tasks:
+    - name: Packages
+      ansible.builtin.package:
+        name:
+          - jq
+          - wget
+          - vim
+          - openjdk-11-jdk
+          - maven
+          - netcat
+          - sysstat
+          - apt-utils
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - net-tools
+          - chrony
+          - procps
+        state: latest

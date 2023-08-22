@@ -1,0 +1,11 @@
+# Dockerfile
+
+FROM redhat/ubi9-init
+COPY .config/entitlement/* /etc/pki/entitlement
+ADD .config/rhsm.tgz /etc/rhsm
+RUN rm /etc/rhsm-host
+ENV SMDEV_CONTAINER_OFF=1
+RUN subscription-manager repos --enable rhel-9-for-x86_64-baseos-rpms
+RUN yum update -y
+COPY test/chrony /etc/default/chrony
+COPY test/chronyd /etc/sysconfig/chronyd

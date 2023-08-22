@@ -1,0 +1,29 @@
+---
+- hosts: localhost
+  gather_facts: no
+  name: Disable THP
+  tasks:
+    - name: Install tuned
+      ansible.builtin.yum:
+        name: tuned
+        state: present
+    - name: Enable tuned
+      ansible.builtin.systemd:
+        state: started
+        enabled: true
+        name: tuned
+    - name: Create Config Directory
+      ansible.builtin.file:
+        path: /etc/tuned/no-thp
+        state: directory
+        mode: '0755'
+    - name: Copy Config File
+      ansible.builtin.copy:
+        src: "{{ package_root }}/config/tuned.conf"
+        dest: /etc/tuned/no-thp/tuned.conf
+        owner: root
+        group: root
+        mode: '0755'
+    - name: Enable the new profile
+      ansible.builtin.shell:
+        cmd: tuned-adm profile no-thp

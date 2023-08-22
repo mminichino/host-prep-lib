@@ -1,0 +1,18 @@
+---
+- hosts: localhost
+  gather_facts: no
+  name: Install Couchbase Server
+  tasks:
+    - name: Install Couchbase Server
+      ansible.builtin.yum:
+        name: "{{ cbs_download_url }}"
+        state: present
+        disable_gpg_check: true
+    - name: Set Process Limits
+      ansible.builtin.copy:
+        src: "{{ package_root }}/config/91-couchbase.conf"
+        dest: /etc/security/limits.d
+        owner: root
+        group: root
+        mode: '0644'
+      when: os_name == "rhel"

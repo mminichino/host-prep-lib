@@ -1,0 +1,45 @@
+---
+- hosts: localhost
+  gather_facts: no
+  name: Install Prerequisites
+  tasks:
+    - name: Amazon Linux Extras
+      ansible.builtin.yum:
+        name: amazon-linux-extras
+        state: latest
+      when: os_major == "2"
+    - name: Amazon Linux EPEL
+      ansible.builtin.shell:
+        cmd: amazon-linux-extras install epel -y
+      when: os_major == "2"
+- hosts: localhost
+  gather_facts: no
+  name: Install Main
+  tasks:
+    - name: Packages
+      ansible.builtin.package:
+        name:
+          - jq
+          - wget
+          - vim-enhanced
+          - maven
+          - nc
+          - yum-utils
+          - ca-certificates
+          - net-tools
+          - chrony
+          - procps
+        state: latest
+- hosts: localhost
+  gather_facts: no
+  name: Install OpenJDK
+  tasks:
+    - name: Amazon Linux 2023
+      ansible.builtin.package:
+        name: java-11-amazon-corretto-devel
+        state: latest
+      when: os_major == "2023"
+    - name: Amazon Linux 2
+      ansible.builtin.shell:
+        cmd: amazon-linux-extras install java-openjdk11 -y
+      when: os_major == "2"

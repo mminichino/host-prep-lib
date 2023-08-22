@@ -1,0 +1,11 @@
+---
+- hosts: localhost
+  gather_facts: no
+  name: Enable Service
+  tasks:
+    - name: Chrony
+      ansible.builtin.systemd:
+        state: started
+        enabled: true
+        name: chrony
+      when: not time_svc_enabled|bool

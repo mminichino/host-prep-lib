@@ -1,0 +1,19 @@
+# Dockerfile
+
+FROM amazonlinux:2
+RUN yum -y install dbus systemd systemd-sysv git ; \
+    cd /lib/systemd/system/sysinit.target.wants/ ; \
+    for i in *; do [ $i = systemd-tmpfiles-setup.service ] || rm -f $i ; done ; \
+    rm -f /lib/systemd/system/multi-user.target.wants/* ; \
+    rm -f /etc/systemd/system/*.wants/* ; \
+    rm -f /lib/systemd/system/local-fs.target.wants/* ; \
+    rm -f /lib/systemd/system/sockets.target.wants/*udev* ; \
+    rm -f /lib/systemd/system/sockets.target.wants/*initctl* ; \
+    rm -f /lib/systemd/system/basic.target.wants/* ; \
+    rm -f /lib/systemd/system/anaconda.target.wants/*
+RUN amazon-linux-extras enable python3.8
+RUN yum install -q -y python3.8
+COPY test/systemctl3.py /usr/bin/systemctl
+COPY test/journalctl3.py /usr/bin/journalctl
+COPY test/chrony /etc/default/chrony
+COPY test/chronyd /etc/sysconfig/chronyd

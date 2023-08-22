@@ -1,0 +1,227 @@
+{
+  "bundles": {
+    "Base": {
+      "centos|rhel|rocky|ol|fedora": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_yum.yaml",
+        "post": null
+      },
+      "amzn": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_amzn.yaml",
+        "post": null
+      },
+      "ubuntu|debian": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_apt.yaml",
+        "post": null
+      },
+      "opensuse-leap|sles": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_zypper.yaml",
+        "post": null
+      },
+      "arch": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_pacman.yaml",
+        "post": null
+      }
+    },
+    "Chrony": {
+      "centos|rhel|amzn|rocky|ol|fedora": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "enable_chrony_rhel.yaml",
+        "post": null
+      },
+      "ubuntu|debian": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "enable_chrony_dep.yaml",
+        "post": null
+      },
+      "opensuse-leap|sles": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "enable_chrony_rhel.yaml",
+        "post": null
+      },
+      "arch": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "enable_chrony_rhel.yaml",
+        "post": null
+      }
+    },
+    "Firewall": {
+      "centos|rhel|amzn|rocky|ol|fedora": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "disable_firewalld_rhel.yaml",
+        "post": null
+      },
+      "ubuntu|debian": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "disable_firewall_dep.yaml",
+        "post": null
+      },
+      "opensuse-leap|sles": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "disable_firewalld_rhel.yaml",
+        "post": null
+      },
+      "arch": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "disable_firewall_dep.yaml",
+        "post": null
+      }
+    },
+    "THP": {
+      "centos|rhel|rocky|ol|fedora": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "disable_thp_rhel.yaml",
+        "post": null
+      },
+      "amzn": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "disable_thp_amzn.yaml",
+        "post": null
+      },
+      "ubuntu|debian": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "disable_thp_deb.yaml",
+        "post": null
+      },
+      "opensuse-leap|sles": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "disable_thp_sles.yaml",
+        "post": null
+      },
+      "arch": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "disable_thp_rhel.yaml",
+        "post": null
+      }
+    },
+    "Swappiness": {
+      "centos|rhel|amzn|rocky|ol|fedora": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "configure_swappiness.yaml",
+        "post": null
+      },
+      "ubuntu|debian": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "configure_swappiness.yaml",
+        "post": null
+      },
+      "opensuse-leap|sles": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "configure_swappiness.yaml",
+        "post": null
+      },
+      "arch": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "configure_swappiness.yaml",
+        "post": null
+      }
+    },
+    "CBS": {
+      "centos|rhel|amzn|rocky|ol|fedora": {
+        "requires": [
+          "Base",
+          "Chrony",
+          "Firewall",
+          "THP",
+          "Swappiness"
+        ],
+        "extra_vars": [
+          "cbs_download_url"
+        ],
+        "pre": null,
+        "run": "install_cbs_yum.yaml",
+        "post": null
+      },
+      "ubuntu|debian": {
+        "requires": [
+          "Base",
+          "Chrony",
+          "Firewall",
+          "THP",
+          "Swappiness"
+        ],
+        "extra_vars": [
+          "cbs_download_url"
+        ],
+        "pre": null,
+        "run": "install_cbs_apt.yaml",
+        "post": null
+      },
+      "opensuse-leap|sles": {
+        "requires": [
+          "Base",
+          "Chrony",
+          "Firewall",
+          "THP",
+          "Swappiness"
+        ],
+        "extra_vars": [
+          "cbs_download_url"
+        ],
+        "pre": null,
+        "run": "install_cbs_sles.yaml",
+        "post": null
+      }
+    }
+  }
+}

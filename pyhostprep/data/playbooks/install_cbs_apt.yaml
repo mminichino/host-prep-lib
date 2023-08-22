@@ -1,0 +1,8 @@
+---
+- hosts: localhost
+  gather_facts: no
+  name: Install Couchbase Server
+  tasks:
+    - name: Install Couchbase Server
+      ansible.builtin.apt:
+        deb: "{{ cbs_download_url }}"

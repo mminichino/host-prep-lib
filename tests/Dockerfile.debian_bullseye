@@ -1,0 +1,8 @@
+# Dockerfile
+
+FROM debian:bullseye
+RUN apt-get update
+RUN apt-get install -y systemd systemd-sysv dbus dbus-user-session init
+RUN ln -sf /lib/systemd/systemd /usr/sbin/init
+COPY test/chrony /etc/default/chrony
+COPY test/chronyd /etc/sysconfig/chronyd

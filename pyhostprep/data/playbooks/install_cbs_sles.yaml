@@ -1,0 +1,10 @@
+---
+- hosts: localhost
+  gather_facts: no
+  name: Install Couchbase Server
+  tasks:
+    - name: Install Couchbase Server
+      community.general.zypper:
+        name: "{{ cbs_download_url }}"
+        disable_gpg_check: true
+        state: present

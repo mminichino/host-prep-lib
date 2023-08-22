@@ -1,0 +1,170 @@
+{
+  "bundles": {
+    "Base": {
+      "centos|rhel|amzn|rocky|ol|fedora": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_yum.yaml",
+        "post": null
+      },
+      "ubuntu|debian": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_apt.yaml",
+        "post": null
+      },
+      "zypper": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_zypper.yaml",
+        "post": null
+      },
+      "pacman": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_pacman.yaml",
+        "post": null
+      }
+    },
+    "TestA": {
+      "centos|rhel|amzn|rocky|ol|fedora": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_yum.yaml",
+        "post": null
+      },
+      "ubuntu|debian": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "base_sw_apt.yaml",
+        "post": null
+      },
+      "zypper": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_zypper.yaml",
+        "post": null
+      },
+      "pacman": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_pacman.yaml",
+        "post": null
+      }
+    },
+    "TestB": {
+      "centos|rhel|amzn|rocky|ol|fedora": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_yum.yaml",
+        "post": null
+      },
+      "ubuntu|debian": {
+        "requires": [
+          "Base",
+          "TestA"
+        ],
+        "pre": null,
+        "run": "base_sw_apt.yaml",
+        "post": null
+      },
+      "zypper": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_zypper.yaml",
+        "post": null
+      },
+      "pacman": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_pacman.yaml",
+        "post": null
+      }
+    },
+    "TestC": {
+      "centos|rhel|amzn|rocky|ol|fedora": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_yum.yaml",
+        "post": null
+      },
+      "ubuntu|debian": {
+        "requires": [
+          "Base",
+          "TestA"
+        ],
+        "pre": null,
+        "run": "base_sw_apt.yaml",
+        "post": null
+      },
+      "zypper": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_zypper.yaml",
+        "post": null
+      },
+      "pacman": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_pacman.yaml",
+        "post": null
+      }
+    },
+    "TestD": {
+      "centos|rhel|amzn|rocky|ol|fedora": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_yum.yaml",
+        "post": null
+      },
+      "ubuntu|debian": {
+        "requires": [
+          "TestC"
+        ],
+        "pre": null,
+        "run": "base_sw_apt.yaml",
+        "post": null
+      },
+      "zypper": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_zypper.yaml",
+        "post": null
+      },
+      "pacman": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_pacman.yaml",
+        "post": null
+      }
+    },
+    "TestE": {
+      "centos|rhel|amzn|rocky|ol|fedora": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_yum.yaml",
+        "post": null
+      },
+      "ubuntu|debian": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_apt.yaml",
+        "post": null
+      },
+      "zypper": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_zypper.yaml",
+        "post": null
+      },
+      "pacman": {
+        "requires": [],
+        "pre": null,
+        "run": "base_sw_pacman.yaml",
+        "post": null
+      }
+    }
+  }
+}

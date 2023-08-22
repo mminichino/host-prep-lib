@@ -1,0 +1,11 @@
+---
+- hosts: localhost
+  gather_facts: no
+  name: Swappiness
+  tasks:
+    - name: Set Value
+      ansible.posix.sysctl:
+        name: vm.swappiness
+        value: '1'
+        state: present
+        reload: true

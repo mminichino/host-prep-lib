@@ -1,0 +1,34 @@
+---
+- hosts: localhost
+  gather_facts: no
+  name: Install EPEL
+  tasks:
+    - name: Import EPEL Key
+      ansible.builtin.rpm_key:
+        state: present
+        key: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-{{ os_major }}"
+      when: os_name != "fedora"
+    - name: Package
+      ansible.builtin.yum:
+        name: "https://dl.fedoraproject.org/pub/epel/epel-release-latest-{{ os_major }}.noarch.rpm"
+        state: latest
+      when: os_name != "fedora"
+- hosts: localhost
+  gather_facts: no
+  name: Install Main
+  tasks:
+    - name: Packages
+      ansible.builtin.package:
+        name:
+          - jq
+          - wget
+          - vim-enhanced
+          - java-11-openjdk
+          - maven
+          - nc
+          - yum-utils
+          - ca-certificates
+          - net-tools
+          - chrony
+          - procps
+        state: latest
