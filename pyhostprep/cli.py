@@ -127,8 +127,11 @@ class CLI(object):
 
     @staticmethod
     def galaxy_executor(args):
+        stdout_save = sys.stdout
+        sys.stdout = StreamToLogger(logger, logging.DEBUG)
         galaxy = GalaxyCLI(args)
         galaxy.run()
+        sys.stdout = stdout_save
 
     def init_parser(self):
         self.parser = argparse.ArgumentParser(add_help=False)
