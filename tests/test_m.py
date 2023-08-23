@@ -4,7 +4,8 @@ import os
 import argparse
 import logging
 import warnings
-from common import start_container, stop_container, run_in_container, get_container_id, container_mkdir, container_log, copy_log_from_container, image_name, copy_git_to_container
+from common import (start_container, stop_container, run_in_container, get_container_id, container_mkdir, container_log, copy_log_from_container, image_name,
+                    copy_git_to_container, copy_to_container)
 
 warnings.filterwarnings("ignore")
 logger = logging.getLogger()
@@ -53,18 +54,18 @@ def manual_2(args: argparse.Namespace):
     global parent
     platform = "linux/amd64"
     volume = "/opt/couchbase"
-    destination = "/usr/local/hostprep"
+    destination = "/var/tmp"
     container_image = args.container
     hostprep_log_file = "/var/log/hostprep.log"
-    setup_log_file = "/usr/local/hostprep/setup.log"
+    setup_log_file = "/var/tmp/setup.log"
+    setup_script = os.path.join(parent, 'bin', 'setup.sh')
 
     container_id = start_container(container_image, platform, volume)
     log_dest = f"{parent}/test/output/{image_name(container_id)}"
     try:
-        container_mkdir(container_id, destination)
-        copy_git_to_container(container_id, parent, destination)
-        run_in_container(container_id, destination, ["bin/setup.sh", "-s"])
-        run_in_container(container_id, destination, ["bin/install.py", "-b", "CBS"])
+        copy_to_container(container_id, setup_script, destination)
+        run_in_container(container_id, destination, ["./setup.sh", "-s", "-g", "https://github.com/mminichino/host-prep-lib"])
+        run_in_container(container_id, destination, ["bundlemgr", "-b", "CBS"])
     except Exception:
         container_log(container_id, log_dest)
         copy_log_from_container(container_id, hostprep_log_file, log_dest)

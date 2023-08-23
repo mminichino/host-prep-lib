@@ -12,6 +12,7 @@ SETUP_LOG="setup.log"
 INSTALL_PYTHON=1
 SYSTEM_INSTALL=0
 PIP_EXTRA_ARGS=""
+GIT_URL=""
 
 PYTHON_VERSION="3.9"
 PIP_VERSION="3.9"
@@ -28,6 +29,7 @@ err_exit() {
    if [ -n "$1" ]; then
       echo "[!] Error: $1"
    fi
+   [ -d "${PACKAGE_DIR:?}/${VENV_NAME:?}" ] && rm -rf "${PACKAGE_DIR:?}/${VENV_NAME:?}"
    exit 1
 }
 
@@ -62,31 +64,36 @@ set_python_version() {
 install_prerequisites() {
   case ${ID:-null} in
   amzn|rocky|ol|fedora)
-    yum install -y which
+    yum install -q -y which git
     ;;
   centos|rhel)
+    yum install -q -y git
     ;;
   ubuntu)
+    apt-get update
     if [ "$OS_MAJOR_REV" -gt 20 ]; then
       set_tz
       export DEBIAN_FRONTEND=noninteractive
-      apt-get update
       apt-get install -q -y software-properties-common
       add-apt-repository -y ppa:deadsnakes/ppa
     fi
+    apt-get install -q -y git
     ;;
   debian)
+    apt-get update
+    apt-get install -q -y git
     ;;
   opensuse-leap)
-    zypper install -y which
+    zypper install -y which git-core
     ;;
   sles)
-    zypper install -y which gawk
+    zypper install -y which gawk git-core
     ;;
   arch)
     pacman-key --init
     pacman-key --populate
     pacman -Sy --noconfirm
+    pacman -S --noconfirm git
     ;;
   *)
     err_exit "Unknown Linux distribution $ID"
@@ -201,7 +208,7 @@ install_check() {
   pip3 freeze
 }
 
-while getopts "fcsn:" opt
+while getopts "fcsn:g:" opt
 do
   case $opt in
     f)
@@ -216,6 +223,9 @@ do
       ;;
     n)
       VENV_NAME=$OPTARG
+      ;;
+    g)
+      GIT_URL=$OPTARG
       ;;
     \?)
       echo "Invalid Argument"
@@ -279,20 +289,27 @@ else
   set_python_link
 fi
 
-if ! [ -f requirements.txt ]; then
-  echo "No requirements.txt found."
-  exit 1
-fi
-
 printf "Installing dependencies... "
 $PYTHON_BIN -m pip install --upgrade pip setuptools wheel >> $SETUP_LOG 2>&1
-$PIP_BIN install --no-cache-dir $PIP_EXTRA_ARGS -r requirements.txt >> $SETUP_LOG 2>&1
-if [ $? -ne 0 ]; then
-  echo "Setup failed."
-  rm -rf "${PACKAGE_DIR:?}/${VENV_NAME:?}"
-  exit 1
-else
-  echo "Done."
+
+if [ -f requirements.txt ]; then
+  echo "Installing packages from requirements.txt"
+  if $PIP_BIN install --no-cache-dir $PIP_EXTRA_ARGS -r requirements.txt >> $SETUP_LOG 2>&1
+  then
+    echo "Done."
+  else
+    err_exit "Pip failed."
+  fi
+fi
+
+if [ -n "$GIT_URL" ]; then
+  echo "Installing package from VCS $GIT_URL"
+  if $PIP_BIN install $PIP_EXTRA_ARGS "git+${GIT_URL}" >> $SETUP_LOG 2>&1
+  then
+    echo "Done."
+  else
+    err_exit "Pip failed."
+  fi
 fi
 
 if [ -x "${SCRIPT_DIR}/post_setup.sh" ]
