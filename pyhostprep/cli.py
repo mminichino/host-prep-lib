@@ -78,7 +78,7 @@ class StreamOutputLogger(object):
             self.logger.log(self.level, line.rstrip())
 
     def __getattr__(self, name):
-        return object.__getattribute__(self.f, name)
+        return getattr(sys.stdout, name)
 
     def flush(self):
         pass
