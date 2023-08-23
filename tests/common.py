@@ -93,6 +93,7 @@ def copy_dir_to_container(container_id: Container, src_dir: str, dst: str):
 
 
 def copy_git_to_container(container_id: Container, src: str, dst: str):
+    container_mkdir(container_id, dst)
     file_list = []
     print(f"Copying git HEAD to {dst}")
     output: BytesIO = cmd_exec(["git", "ls-tree", "--full-tree", "--name-only", "-r", "HEAD"], src)
