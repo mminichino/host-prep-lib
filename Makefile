@@ -10,5 +10,5 @@ push:
 		twine upload $(REV_FILE)
 pypi: setup push
 test:
-		python -m pytest test/test_1.py
+		python -m pytest tests/test_1.py
 
