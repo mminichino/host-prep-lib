@@ -7,7 +7,7 @@ import sys
 import ansible_runner
 from overrides import override
 from pyhostprep.software import SoftwareManager
-from pyhostprep.cli import CLI, StreamToLogger
+from pyhostprep.cli import CLI, StreamOutputLogger
 from pyhostprep import get_playbook_file
 
 warnings.filterwarnings("ignore")
@@ -69,7 +69,7 @@ class BundleMgrCLI(CLI):
                         extra_vars.update({'cbs_download_url': url})
                 logger.info(f"Running playbook {playbook}")
                 stdout_save = sys.stdout
-                sys.stdout = StreamToLogger(logger, logging.INFO)
+                sys.stdout = StreamOutputLogger(logger, logging.INFO)
                 r = ansible_runner.run(playbook=f"{get_playbook_file(playbook)}", extravars=extra_vars)
                 sys.stdout = stdout_save
                 logger.info(f"Playbook status: {r.status}")

@@ -67,7 +67,7 @@ class CustomLogFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-class StreamToLogger(object):
+class StreamOutputLogger(object):
     def __init__(self, _logger, _level):
         self.logger = _logger
         self.level = _level
@@ -76,6 +76,10 @@ class StreamToLogger(object):
     def write(self, buf):
         for line in buf.rstrip().splitlines():
             self.logger.log(self.level, line.rstrip())
+
+    @staticmethod
+    def isatty():
+        return False
 
     def flush(self):
         pass
@@ -128,7 +132,7 @@ class CLI(object):
     @staticmethod
     def galaxy_executor(args):
         stdout_save = sys.stdout
-        sys.stdout = StreamToLogger(logger, logging.DEBUG)
+        sys.stdout = StreamOutputLogger(logger, logging.DEBUG)
         galaxy = GalaxyCLI(args)
         galaxy.run()
         sys.stdout = stdout_save
