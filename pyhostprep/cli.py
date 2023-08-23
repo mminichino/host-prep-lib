@@ -77,9 +77,8 @@ class StreamOutputLogger(object):
         for line in buf.rstrip().splitlines():
             self.logger.log(self.level, line.rstrip())
 
-    @property
-    def isatty(self):
-        return False
+    def __getattr__(self, name):
+        return object.__getattribute__(self.f, name)
 
     def flush(self):
         pass
