@@ -92,7 +92,7 @@ class CLI(object):
 
     def __init__(self, args):
         signal.signal(signal.SIGINT, break_signal_handler)
-        default_debug_file = f"/var/log/{os.path.splitext(sys.argv[0])[0]}.log"
+        default_debug_file = f"/var/log/{os.path.splitext(os.path.basename(sys.argv[0]))[0]}.log"
         debug_file = os.environ.get("DEBUG_FILE", default_debug_file)
         self.args = args
         self.parser = None
