@@ -17,6 +17,7 @@ class ServerConfig:
     services: Optional[List[str]] = attr.ib(default=None)
     index_mem_opt: Optional[int] = attr.ib(default=None)
     availability_zone: Optional[str] = attr.ib(default=None)
+    data_path: Optional[str] = attr.ib(default=None)
 
     @property
     def get_values(self):
@@ -34,6 +35,7 @@ class ServerConfig:
             json_data.get("services", []),
             json_data.get("index_mem_opt"),
             json_data.get("availability_zone"),
+            json_data.get("data_path"),
         )
 
 
@@ -45,22 +47,39 @@ class CouchbaseServer(object):
                  username: str = "Administrator",
                  password: str = "password",
                  index_mem_opt: int = 0,
+                 availability_zone: str = "primary",
                  data_path: str = "/opt/couchbase/var/lib/couchbase/data"):
+        self.data_quota = None
+        self.analytics_quota = None
+        self.index_quota = None
+        self.fts_quota = None
+        self.eventing_quota = None
         self.config_dir = "/etc/couchbase"
         self.config_file = "cbs_node.cfg"
-        self.config = ServerConfig()
+        self.internal_ip, self.external_ip, self.external_access = self.get_net_config()
+        self.get_mem_config()
         self.cluster_name = name
         self.username = username
         self.password = password
         self.data_path = data_path
         self.index_mem_opt = index_mem_opt
+        self.availability_zone = availability_zone
         if not services:
             self.services = ["data", "index", "query"]
         else:
             self.services = services
 
+        self.config = ServerConfig().from_dict(dict(
+                internal_ip=self.internal_ip,
+                external_ip=self.external_ip if self.external_access else None,
+                services=self.services,
+                index_mem_opt=self.index_mem_opt,
+                availability_zone=self.availability_zone,
+                data_path=self.data_path
+            ))
+        self.write_config()
+
     def get_mem_config(self):
-        reservation = 0
         analytics_quota = 0
         data_quota = 0
         host_mem = psutil.virtual_memory()
@@ -74,6 +93,9 @@ class CouchbaseServer(object):
         _analytics_mem = 1024
         _data_mem = 2048
 
+        os_pool = int(total_mem * 0.3)
+        reservation = 2048 if os_pool < 2048 else 4096 if os_pool > 4096 else os_pool
+        
         if "eventing" in self.services:
             reservation += _eventing_mem
         if "fts" in self.services:
@@ -95,6 +117,12 @@ class CouchbaseServer(object):
                 data_quota = memory_pool - analytics_quota
             else:
                 data_quota = memory_pool
+                
+        self.eventing_quota = _eventing_mem
+        self.fts_quota = _fts_mem
+        self.index_quota = _index_mem
+        self.analytics_quota = analytics_quota
+        self.data_quota = data_quota
 
     @staticmethod
     def get_net_config():
@@ -102,16 +130,6 @@ class CouchbaseServer(object):
         external_ip = NetworkInfo().get_pubic_ip_address()
         external_access = NetworkInfo().check_port(external_ip, 8091)
         return internal_ip, external_ip, external_access
-
-    def create_config(self):
-        internal_ip, external_ip, external_access = self.get_net_config()
-        self.config = self.config.from_dict(dict(
-                internal_ip=internal_ip,
-                external_ip=external_ip if external_access else None,
-                services=["data", "index", "query"],
-                index_mem_opt=0,
-                availability_zone="primary"
-            ))
 
     def write_config(self):
         config_file = os.path.join(self.config_dir, self.config_file)
@@ -125,6 +143,7 @@ class CouchbaseServer(object):
         config_file = os.path.join(self.config_dir, self.config_file)
         with open(config_file, 'r') as cfg_file:
             self.config.from_dict(json.load(cfg_file))
+        return self.config
 
     def cfg_file_exists(self):
         return os.path.exists(os.path.join(self.config_dir, self.config_file))
