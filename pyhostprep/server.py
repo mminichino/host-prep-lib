@@ -42,7 +42,8 @@ class ServerConfig:
 class CouchbaseServer(object):
 
     def __init__(self,
-                 name: str = "cbdb",
+                 name: str,
+                 ip_list: list[str],
                  services: list[str] = None,
                  username: str = "Administrator",
                  password: str = "password",
@@ -57,6 +58,8 @@ class CouchbaseServer(object):
         self.config_dir = "/etc/couchbase"
         self.config_file = "cbs_node.cfg"
         self.internal_ip, self.external_ip, self.external_access = self.get_net_config()
+        self.ip_list = ip_list
+        self.rally_ip_address = self.ip_list[0]
         self.get_mem_config()
         self.cluster_name = name
         self.username = username
@@ -148,8 +151,13 @@ class CouchbaseServer(object):
     def cfg_file_exists(self):
         return os.path.exists(os.path.join(self.config_dir, self.config_file))
 
-    def is_node(self):
-        pass
+    def is_node(self, ip_address: str):
+        cmd = [
+            "/opt/couchbase/bin/couchbase-cli", "host-list",
+            "--cluster", self.rally_ip_address,
+            "--username", self.username,
+            "--password", self.password
+        ]
 
     def cb_node_init(self):
         pass
