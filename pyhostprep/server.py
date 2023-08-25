@@ -5,9 +5,15 @@ import attr
 import json
 import os
 import psutil
+from cbcmgr.httpsessionmgr import APISession
 from typing import Optional, List
 from pyhostprep.network import NetworkInfo
 from pyhostprep.util import FileManager
+from pyhostprep.command import RunShellCommand, RCNotZero
+
+
+class ClusterSetupError(Exception):
+    pass
 
 
 @attr.s
@@ -71,6 +77,10 @@ class CouchbaseServer(object):
             self.services = ["data", "index", "query"]
         else:
             self.services = services
+        if index_mem_opt == 0:
+            self.index_mem_setting = "default"
+        else:
+            self.index_mem_setting = "memopt"
 
         self.config = ServerConfig().from_dict(dict(
                 internal_ip=self.internal_ip,
@@ -151,7 +161,7 @@ class CouchbaseServer(object):
     def cfg_file_exists(self):
         return os.path.exists(os.path.join(self.config_dir, self.config_file))
 
-    def is_node(self, ip_address: str):
+    def is_node(self):
         cmd = [
             "/opt/couchbase/bin/couchbase-cli", "host-list",
             "--cluster", self.rally_ip_address,
@@ -159,5 +169,222 @@ class CouchbaseServer(object):
             "--password", self.password
         ]
 
-    def cb_node_init(self):
-        pass
+        try:
+            output = RunShellCommand().cmd_output(cmd, "/var/tmp", split=True, split_sep=':')
+        except RCNotZero:
+            return False
+
+        for item in output:
+            if item[0] == self.internal_ip:
+                return True
+
+        return False
+
+    def is_cluster(self):
+        cmd = [
+            "/opt/couchbase/bin/couchbase-cli", "setting-cluster",
+            "--cluster", self.rally_ip_address,
+            "--username", self.username,
+            "--password", self.password
+        ]
+
+        try:
+            RunShellCommand().cmd_output(cmd, "/var/tmp")
+        except RCNotZero:
+            return False
+
+        return True
+
+    def node_init(self):
+        if self.is_node():
+            return True
+
+        cmd = [
+            "/opt/couchbase/bin/couchbase-cli", "node-init",
+            "--cluster", self.rally_ip_address,
+            "--username", self.username,
+            "--password", self.password,
+            "--node-init-hostname", self.rally_ip_address,
+            "--node-init-data-path", self.data_path,
+            "--node-init-index-path", self.data_path,
+            "--node-init-analytics-path", self.data_path,
+            "--node-init-eventing-path", self.data_path,
+        ]
+
+        try:
+            RunShellCommand().cmd_output(cmd, "/var/tmp")
+        except RCNotZero as err:
+            raise ClusterSetupError(f"Node init failed: {err}")
+
+        return True
+
+    def cluster_init(self):
+        self.node_init()
+
+        cmd = [
+            "/opt/couchbase/bin/couchbase-cli", "cluster-init",
+            "--cluster", self.rally_ip_address,
+            "--cluster-username", self.username,
+            "--cluster-password", self.password,
+            "--cluster-port", "8091",
+            "--cluster-ramsize", self.data_quota,
+            "--cluster-fts-ramsize", self.fts_quota,
+            "--cluster-index-ramsize", self.index_quota,
+            "--cluster-eventing-ramsize", self.eventing_quota,
+            "--cluster-analytics-ramsize", self.analytics_quota,
+            "--cluster-name", self.cluster_name,
+            "--index-storage-setting", self.index_mem_setting,
+            "--services", ','.join(self.services)
+        ]
+
+        try:
+            RunShellCommand().cmd_output(cmd, "/var/tmp")
+        except RCNotZero as err:
+            raise ClusterSetupError(f"Cluster init failed: {err}")
+
+        self.node_external_ip()
+        self.node_change_group()
+
+        return True
+
+    def node_add(self):
+        self.node_init()
+
+        cmd = [
+            "/opt/couchbase/bin/couchbase-cli", "server-add",
+            "--cluster", self.rally_ip_address,
+            "--username", self.username,
+            "--password", self.password,
+            "--server-add-username", self.username,
+            "--server-add-password", self.password,
+            "--server-add", self.internal_ip,
+            "--services" ','.join(self.services)
+        ]
+
+        try:
+            RunShellCommand().cmd_output(cmd, "/var/tmp")
+        except RCNotZero as err:
+            raise ClusterSetupError(f"Node add failed: {err}")
+
+        self.node_external_ip()
+        self.node_change_group()
+
+        return True
+
+    def node_external_ip(self):
+        if not self.external_access:
+            return True
+
+        cmd = [
+            "/opt/couchbase/bin/couchbase-cli", "setting-alternate-address",
+            "--cluster", self.rally_ip_address,
+            "--username", self.username,
+            "--password", self.password,
+            "--set",
+            "--node", self.internal_ip,
+            "--hostname", self.external_ip,
+        ]
+
+        try:
+            RunShellCommand().cmd_output(cmd, "/var/tmp")
+        except RCNotZero as err:
+            raise ClusterSetupError(f"External address config failed: {err}")
+
+        return True
+
+    def is_group(self):
+        cmd = [
+            "/opt/couchbase/bin/couchbase-cli", "group-manage",
+            "--cluster", self.rally_ip_address,
+            "--username", self.username,
+            "--password", self.password,
+            "--list",
+            "--group-name", self.availability_zone
+        ]
+
+        try:
+            RunShellCommand().cmd_output(cmd, "/var/tmp")
+        except RCNotZero:
+            return False
+
+        return True
+
+    def create_group(self):
+        cmd = [
+            "/opt/couchbase/bin/couchbase-cli", "group-manage",
+            "--cluster", self.rally_ip_address,
+            "--username", self.username,
+            "--password", self.password,
+            "--create",
+            "--group-name", self.availability_zone
+        ]
+
+        try:
+            RunShellCommand().cmd_output(cmd, "/var/tmp")
+        except RCNotZero as err:
+            raise ClusterSetupError(f"Group create failed: {err}")
+
+        return True
+
+    def get_node_group(self):
+        api = APISession(self.username, self.password)
+        api.set_host(self.rally_ip_address, 0, 8091)
+        response = api.api_get("/pools/default/serverGroups")
+
+        for item in response.json().get('groups', {}):
+            name = item.get('name', '')
+            for node in item.get('nodes', []):
+                node_ip = node.get('hostname').split(':')[0]
+                if node_ip == self.internal_ip:
+                    return name
+
+        return None
+
+    def node_change_group(self):
+        current_group = self.get_node_group()
+        if current_group == self.availability_zone:
+            return True
+
+        if not self.is_group():
+            self.create_group()
+
+        cmd = [
+            "/opt/couchbase/bin/couchbase-cli", "group-manage",
+            "--cluster", self.rally_ip_address,
+            "--username", self.username,
+            "--password", self.password,
+            "--move-servers", self.internal_ip,
+            "--from-group", current_group,
+            "--to-group", self.availability_zone
+        ]
+
+        try:
+            RunShellCommand().cmd_output(cmd, "/var/tmp")
+        except RCNotZero as err:
+            raise ClusterSetupError(f"Can not change node group: {err}")
+
+        return True
+
+    def rebalance(self):
+        cmd = [
+            "/opt/couchbase/bin/couchbase-cli", "rebalance",
+            "--cluster", self.rally_ip_address,
+            "--username", self.username,
+            "--password", self.password,
+            "--no-progress-bar"
+        ]
+
+        try:
+            RunShellCommand().cmd_output(cmd, "/var/tmp")
+        except RCNotZero as err:
+            raise ClusterSetupError(f"Can not rebalance cluster: {err}")
+
+        return True
+
+    def bootstrap(self):
+        if self.internal_ip == self.rally_ip_address:
+            if not self.is_cluster():
+                self.cluster_init()
+        else:
+            if not self.is_node():
+                self.node_add()

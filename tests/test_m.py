@@ -26,6 +26,7 @@ class Params(object):
         parser.add_argument("--refresh", action="store_true")
         parser.add_argument("--minimal", action="store_true")
         parser.add_argument("--logs", action="store_true")
+        parser.add_argument("--arm", action="store_true")
         self.args = parser.parse_args()
 
     @property
@@ -39,9 +40,14 @@ def minimal_1(args: argparse.Namespace):
 
 def manual_1(args: argparse.Namespace):
     global parent
+    if args.arm:
+        platform = "linux/arm64"
+    else:
+        platform = "linux/amd64"
+    volume = "/opt/couchbase"
     destination = "/usr/local/hostprep"
 
-    container_id = start_container(args.container)
+    container_id = start_container(args.container, platform, volume)
     try:
         container_mkdir(container_id, destination)
         copy_git_to_container(container_id, parent, destination)
@@ -52,7 +58,10 @@ def manual_1(args: argparse.Namespace):
 
 def manual_2(args: argparse.Namespace):
     global parent
-    platform = "linux/amd64"
+    if args.arm:
+        platform = "linux/arm64"
+    else:
+        platform = "linux/amd64"
     volume = "/opt/couchbase"
     destination = "/var/tmp"
     container_image = args.container

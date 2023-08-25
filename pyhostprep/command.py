@@ -15,6 +15,10 @@ class ShellCommandError(Exception):
     pass
 
 
+class RCNotZero(Exception):
+    pass
+
+
 class RunShellCommand(object):
 
     def __init__(self):
@@ -44,10 +48,12 @@ class RunShellCommand(object):
     @staticmethod
     def cmd_output(command: Union[str, List[str]], directory: str, split: bool = False, split_sep: str = None):
         out_lines = []
+        output = BytesIO()
         try:
             output: BytesIO = RunShellCommand().cmd_exec(command, directory)
         except ShellCommandError:
-            raise
+            out_text = output.read().decode("utf-8")
+            raise RCNotZero(out_text)
 
         while True:
             line = output.readline()
