@@ -53,9 +53,12 @@ class RunShellCommand(object):
             line = output.readline()
             if not line:
                 break
-            line_string = line.decode("utf-8")
-            if split:
-                items = line_string.strip().split(split_sep)
-                out_lines.append(items)
-            else:
-                out_lines.append(line_string)
+            line_string = line.decode("utf-8").strip()
+            if len(line_string) > 0:
+                if split:
+                    items = line_string.split(split_sep)
+                    out_lines.append(items)
+                else:
+                    out_lines.append(line_string)
+
+        return out_lines
