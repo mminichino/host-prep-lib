@@ -2,13 +2,11 @@
 ##
 
 import attr
-import json
-import os
 import psutil
+from enum import Enum
 from cbcmgr.httpsessionmgr import APISession
-from typing import Optional, List
+from typing import Optional, List, Sequence
 from pyhostprep.network import NetworkInfo
-from pyhostprep.util import FileManager
 from pyhostprep.command import RunShellCommand, RCNotZero
 
 
@@ -16,14 +14,21 @@ class ClusterSetupError(Exception):
     pass
 
 
+class IndexMemoryOption(Enum):
+    default = 0
+    memopt = 1
+
+
 @attr.s
 class ServerConfig:
-    internal_ip: Optional[str] = attr.ib(default=None)
-    external_ip: Optional[str] = attr.ib(default=None)
-    services: Optional[List[str]] = attr.ib(default=None)
-    index_mem_opt: Optional[int] = attr.ib(default=None)
-    availability_zone: Optional[str] = attr.ib(default=None)
-    data_path: Optional[str] = attr.ib(default=None)
+    name: Optional[str] = attr.ib(default=None)
+    ip_list: Optional[List[str]] = attr.ib(default=None)
+    services: Optional[Sequence[str]] = attr.ib(default=("data", "index", "query"))
+    username: Optional[str] = attr.ib(default="Administrator")
+    password: Optional[str] = attr.ib(default="password")
+    index_mem_opt: Optional[IndexMemoryOption] = attr.ib(default=IndexMemoryOption.default)
+    availability_zone: Optional[str] = attr.ib(default="primary")
+    data_path: Optional[str] = attr.ib(default="/opt/couchbase/var/lib/couchbase/data")
 
     @property
     def get_values(self):
@@ -34,63 +39,47 @@ class ServerConfig:
         return self.__dict__
 
     @classmethod
-    def from_dict(cls, json_data: dict):
+    def create(cls,
+               name: str,
+               ip_list: list[str],
+               services: Sequence[str] = ("data", "index", "query"),
+               username: str = "Administrator",
+               password: str = "password",
+               index_mem_opt: IndexMemoryOption = IndexMemoryOption.default,
+               availability_zone: str = "primary",
+               data_path: str = "/opt/couchbase/var/lib/couchbase/data"):
         return cls(
-            json_data.get("internal_ip"),
-            json_data.get("external_ip"),
-            json_data.get("services", []),
-            json_data.get("index_mem_opt"),
-            json_data.get("availability_zone"),
-            json_data.get("data_path"),
+            name,
+            ip_list,
+            services,
+            username,
+            password,
+            index_mem_opt,
+            availability_zone,
+            data_path
         )
 
 
 class CouchbaseServer(object):
 
-    def __init__(self,
-                 name: str,
-                 ip_list: list[str],
-                 services: list[str] = None,
-                 username: str = "Administrator",
-                 password: str = "password",
-                 index_mem_opt: int = 0,
-                 availability_zone: str = "primary",
-                 data_path: str = "/opt/couchbase/var/lib/couchbase/data"):
+    def __init__(self, config: ServerConfig):
+        self.cluster_name = config.name
+        self.ip_list = config.ip_list
+        self.username = config.username
+        self.password = config.password
+        self.data_path = config.data_path
+        self.index_mem_opt = config.index_mem_opt
+        self.availability_zone = config.availability_zone
+        self.services = config.services
+
         self.data_quota = None
         self.analytics_quota = None
         self.index_quota = None
         self.fts_quota = None
         self.eventing_quota = None
-        self.config_dir = "/etc/couchbase"
-        self.config_file = "cbs_node.cfg"
         self.internal_ip, self.external_ip, self.external_access = self.get_net_config()
-        self.ip_list = ip_list
         self.rally_ip_address = self.ip_list[0]
         self.get_mem_config()
-        self.cluster_name = name
-        self.username = username
-        self.password = password
-        self.data_path = data_path
-        self.index_mem_opt = index_mem_opt
-        self.availability_zone = availability_zone
-        if not services:
-            self.services = ["data", "index", "query"]
-        else:
-            self.services = services
-        if index_mem_opt == 0:
-            self.index_mem_setting = "default"
-        else:
-            self.index_mem_setting = "memopt"
-
-        self.config = ServerConfig().from_dict(dict(
-                internal_ip=self.internal_ip,
-                external_ip=self.external_ip if self.external_access else None,
-                services=self.services,
-                index_mem_opt=self.index_mem_opt,
-                availability_zone=self.availability_zone,
-                data_path=self.data_path
-            ))
-        self.write_config()
 
     def get_mem_config(self):
         analytics_quota = 0
@@ -137,29 +126,16 @@ class CouchbaseServer(object):
         self.analytics_quota = analytics_quota
         self.data_quota = data_quota
 
-    @staticmethod
-    def get_net_config():
-        internal_ip = NetworkInfo().get_ip_address()
-        external_ip = NetworkInfo().get_pubic_ip_address()
-        external_access = NetworkInfo().check_port(external_ip, 8091)
+    def get_net_config(self):
+        if self.rally_ip_address == "127.0.0.1":
+            internal_ip = "127.0.0.1"
+            external_ip = None
+            external_access = False
+        else:
+            internal_ip = NetworkInfo().get_ip_address()
+            external_ip = NetworkInfo().get_pubic_ip_address()
+            external_access = NetworkInfo().check_port(external_ip, 8091)
         return internal_ip, external_ip, external_access
-
-    def write_config(self):
-        config_file = os.path.join(self.config_dir, self.config_file)
-        FileManager().make_dir(self.config_dir)
-        with open(config_file, 'w') as cfg_file:
-            json.dump(self.config.as_dict, cfg_file)
-            cfg_file.write('\n')
-            cfg_file.close()
-
-    def read_config(self):
-        config_file = os.path.join(self.config_dir, self.config_file)
-        with open(config_file, 'r') as cfg_file:
-            self.config.from_dict(json.load(cfg_file))
-        return self.config
-
-    def cfg_file_exists(self):
-        return os.path.exists(os.path.join(self.config_dir, self.config_file))
 
     def is_node(self):
         cmd = [
@@ -233,7 +209,7 @@ class CouchbaseServer(object):
             "--cluster-eventing-ramsize", self.eventing_quota,
             "--cluster-analytics-ramsize", self.analytics_quota,
             "--cluster-name", self.cluster_name,
-            "--index-storage-setting", self.index_mem_setting,
+            "--index-storage-setting", self.index_mem_opt.name,
             "--services", ','.join(self.services)
         ]
 
