@@ -13,7 +13,7 @@ RUN yum -y install dbus systemd systemd-sysv git ; \
     rm -f /lib/systemd/system/anaconda.target.wants/*
 RUN amazon-linux-extras enable python3.8
 RUN yum install -q -y python3.8
-COPY test/systemctl3.py /usr/bin/systemctl
-COPY test/journalctl3.py /usr/bin/journalctl
-COPY test/chrony /etc/default/chrony
-COPY test/chronyd /etc/sysconfig/chronyd
+COPY systemctl3.py /usr/bin/systemctl
+COPY journalctl3.py /usr/bin/journalctl
+COPY chrony /etc/default/chrony
+COPY chronyd /etc/sysconfig/chronyd

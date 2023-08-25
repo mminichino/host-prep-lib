@@ -2,5 +2,5 @@
 
 FROM opensuse/leap
 RUN zypper install -y systemd systemd-sysvinit
-COPY test/chrony /etc/default/chrony
-COPY test/chronyd /etc/sysconfig/chronyd
+COPY chrony /etc/default/chrony
+COPY chronyd /etc/sysconfig/chronyd

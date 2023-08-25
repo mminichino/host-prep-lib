@@ -61,7 +61,7 @@ def manual_2(args: argparse.Namespace):
     setup_script = os.path.join(parent, 'bin', 'setup.sh')
 
     container_id = start_container(container_image, platform, volume)
-    log_dest = f"{parent}/test/output/{image_name(container_id)}"
+    log_dest = f"{parent}/tests/output/{image_name(container_id)}"
     try:
         copy_to_container(container_id, setup_script, destination)
         run_in_container(container_id, destination, ["./setup.sh", "-s", "-g", "https://github.com/mminichino/host-prep-lib"])
@@ -78,7 +78,7 @@ def get_logs():
     container_id = get_container_id()
     hostprep_log_file = "/var/log/hostprep.log"
     setup_log_file = "/usr/local/hostprep/setup.log"
-    log_dest = f"{parent}/test/output/{image_name(container_id)}"
+    log_dest = f"{parent}/tests/output/{image_name(container_id)}"
     container_log(container_id, log_dest)
     copy_log_from_container(container_id, hostprep_log_file, log_dest)
     copy_log_from_container(container_id, setup_log_file, log_dest)

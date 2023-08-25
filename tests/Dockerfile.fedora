@@ -10,5 +10,5 @@ RUN dnf -y install systemd && dnf clean all && \
   rm -f /lib/systemd/system/sockets.target.wants/*initctl* ; \
   rm -f /lib/systemd/system/basic.target.wants/* ;\
   rm -f /lib/systemd/system/anaconda.target.wants/*
-COPY test/chrony /etc/default/chrony
-COPY test/chronyd /etc/sysconfig/chronyd
+COPY chrony /etc/default/chrony
+COPY chronyd /etc/sysconfig/chronyd

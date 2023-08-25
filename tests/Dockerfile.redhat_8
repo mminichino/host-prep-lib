@@ -6,5 +6,5 @@ ADD .config/rhsm.tgz /etc/rhsm
 RUN rm /etc/rhsm-host
 RUN subscription-manager repos --enable rhel-8-for-x86_64-baseos-rpms
 RUN yum update -y
-COPY test/chrony /etc/default/chrony
-COPY test/chronyd /etc/sysconfig/chronyd
+COPY chrony /etc/default/chrony
+COPY chronyd /etc/sysconfig/chronyd

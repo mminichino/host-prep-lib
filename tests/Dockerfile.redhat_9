@@ -7,5 +7,5 @@ RUN rm /etc/rhsm-host
 ENV SMDEV_CONTAINER_OFF=1
 RUN subscription-manager repos --enable rhel-9-for-x86_64-baseos-rpms
 RUN yum update -y
-COPY test/chrony /etc/default/chrony
-COPY test/chronyd /etc/sysconfig/chronyd
+COPY chrony /etc/default/chrony
+COPY chronyd /etc/sysconfig/chronyd

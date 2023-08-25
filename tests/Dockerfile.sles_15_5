@@ -2,5 +2,5 @@
 
 FROM registry.suse.com/suse/sle15:15.5
 RUN zypper install -y systemd systemd-sysvinit
-COPY test/chrony /etc/default/chrony
-COPY test/chronyd /etc/sysconfig/chronyd
+COPY chrony /etc/default/chrony
+COPY chronyd /etc/sysconfig/chronyd

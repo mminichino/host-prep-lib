@@ -36,7 +36,7 @@ def test_1(container, platform):
     setup_script = os.path.join(parent, 'bin', 'setup.sh')
 
     container_id = start_container(container, platform, volume)
-    log_dest = f"{parent}/test/output/{image_name(container_id)}"
+    log_dest = f"{parent}/tests/output/{image_name(container_id)}"
     try:
         copy_to_container(container_id, setup_script, destination)
         run_in_container(container_id, destination, ["./setup.sh", "-s", "-g", "https://github.com/mminichino/host-prep-lib"])
