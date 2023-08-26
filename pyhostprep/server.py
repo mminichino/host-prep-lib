@@ -8,6 +8,7 @@ from cbcmgr.httpsessionmgr import APISession
 from typing import Optional, List, Sequence
 from pyhostprep.network import NetworkInfo
 from pyhostprep.command import RunShellCommand, RCNotZero
+from pyhostprep.retry import retry
 
 
 class ClusterSetupError(Exception):
@@ -82,8 +83,6 @@ class CouchbaseServer(object):
         self.get_mem_config()
 
     def get_mem_config(self):
-        analytics_quota = 0
-        data_quota = 0
         host_mem = psutil.virtual_memory()
         total_mem = int(host_mem.total / (1024 * 1024))
         _eventing_mem = 256
@@ -358,6 +357,16 @@ class CouchbaseServer(object):
             raise ClusterSetupError(f"Can not rebalance cluster: {err}")
 
         return True
+
+    @retry()
+    def cluster_wait(self):
+        cmd = [
+            "/opt/couchbase/bin/couchbase-cli", "server-list",
+            "--cluster", self.rally_ip_address,
+            "--username", self.username,
+            "--password", self.password,
+        ]
+        RunShellCommand().cmd_output(cmd, "/var/tmp")
 
     def bootstrap(self):
         if self.internal_ip == self.rally_ip_address:
