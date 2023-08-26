@@ -72,13 +72,13 @@ class CouchbaseServer(object):
         self.availability_zone = config.availability_zone
         self.services = config.services
 
+        self.rally_ip_address = self.ip_list[0]
         self.data_quota = None
         self.analytics_quota = None
         self.index_quota = None
         self.fts_quota = None
         self.eventing_quota = None
         self.internal_ip, self.external_ip, self.external_access = self.get_net_config()
-        self.rally_ip_address = self.ip_list[0]
         self.get_mem_config()
 
     def get_mem_config(self):
