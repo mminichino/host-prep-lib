@@ -25,14 +25,14 @@ class NetworkInfo(object):
     @staticmethod
     def get_pubic_ip_address():
         try:
-            ip = get('https://api.ipify.org', timeout=4).text
+            ip = get('https://api.ipify.org', timeout=3).text
             return ip
         except requests.exceptions.Timeout:
             return None
 
     @staticmethod
     def check_port(address: str, port: int):
-        socket.setdefaulttimeout(4)
+        socket.setdefaulttimeout(2)
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         result = sock.connect_ex((address, port))
         sock.close()

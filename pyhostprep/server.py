@@ -103,7 +103,7 @@ class CouchbaseServer(object):
         if "fts" in self.services:
             reservation += _fts_mem
         if "index" in self.services:
-            reservation += self.services
+            reservation += _index_mem
 
         memory_pool = total_mem - reservation
 
