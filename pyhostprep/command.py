@@ -38,22 +38,21 @@ class RunShellCommand(object):
             buffer.write(data)
 
         p.communicate()
+        buffer.seek(0)
 
         if p.returncode != 0:
-            raise ShellCommandError("command exited with non-zero return code")
+            output_text = buffer.read().decode("utf-8").strip()
+            raise ShellCommandError(f"command error: {output_text}")
 
-        buffer.seek(0)
         return buffer
 
     @staticmethod
     def cmd_output(command: Union[str, List[str]], directory: str, split: bool = False, split_sep: str = None):
         out_lines = []
-        output = BytesIO()
         try:
             output: BytesIO = RunShellCommand().cmd_exec(command, directory)
-        except ShellCommandError:
-            out_text = output.read().decode("utf-8")
-            raise RCNotZero(out_text)
+        except ShellCommandError as err:
+            raise RCNotZero(err)
 
         while True:
             line = output.readline()

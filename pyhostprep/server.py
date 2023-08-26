@@ -107,24 +107,26 @@ class CouchbaseServer(object):
 
         memory_pool = total_mem - reservation
 
-        if "analytics" in self.services:
-            if "data" in self.services:
-                analytics_pool = int(memory_pool / 5)
-                analytics_quota = analytics_pool if analytics_pool > _analytics_mem else _analytics_mem
-            else:
-                analytics_quota = memory_pool
+        if "analytics" in self.services and "data" in self.services:
+            analytics_pool = int(memory_pool / 5)
+            analytics_quota = analytics_pool if analytics_pool > _analytics_mem else _analytics_mem
+        elif "analytics" in self.services:
+            analytics_quota = memory_pool
+        else:
+            analytics_quota = _analytics_mem
 
-        if "data" in self.services:
-            if "analytics" in self.services:
-                data_quota = memory_pool - analytics_quota
-            else:
-                data_quota = memory_pool
+        if "data" in self.services and "analytics" in self.services:
+            data_quota = memory_pool - analytics_quota
+        elif "data" in self.services:
+            data_quota = memory_pool
+        else:
+            data_quota = _data_mem
                 
-        self.eventing_quota = _eventing_mem
-        self.fts_quota = _fts_mem
-        self.index_quota = _index_mem
-        self.analytics_quota = analytics_quota
-        self.data_quota = data_quota
+        self.eventing_quota = str(_eventing_mem)
+        self.fts_quota = str(_fts_mem)
+        self.index_quota = str(_index_mem)
+        self.analytics_quota = str(analytics_quota)
+        self.data_quota = str(data_quota)
 
     def get_net_config(self):
         if self.rally_ip_address == "127.0.0.1":
