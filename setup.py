@@ -4,8 +4,6 @@ import pyhostprep
 from pathlib import Path
 this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text()
-with open('requirements.txt') as f:
-    required = f.read().splitlines()
 
 setup(
     name='pyhostprep',
@@ -19,7 +17,22 @@ setup(
         'console_scripts': ['bundlemgr = pyhostprep.bundlemgr:main']
     },
     package_data={'pyhostprep': ['data/config/*', 'data/playbooks/*']},
-    install_requires=required,
+    install_requires=[
+        "attrs>=22.2.0",
+        "pytest>=7.0.1",
+        "pytest-asyncio>=0.16.0",
+        "pytest-rerunfailures>=10.3",
+        "pytest-mock>=3.6.1",
+        "docker>=5.0.3",
+        "ansible>=6.7.0",
+        "ansible-runner>=2.3.3",
+        "requests>=2.31.0",
+        "urllib3==1.26.16",
+        "overrides>=7.4.0",
+        "bumpversion>=0.6.0",
+        "psutil>=5.9.5",
+        "cbcmgr>=1.5.1",
+    ],
     author_email='info@unix.us.com',
     description='Couchbase Host Automation Library',
     long_description=long_description,
