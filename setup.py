@@ -14,7 +14,10 @@ setup(
     author='Michael Minichino',
     python_requires='>=3.8',
     entry_points={
-        'console_scripts': ['bundlemgr = pyhostprep.bundlemgr:main']
+        'console_scripts': [
+            'bundlemgr = pyhostprep.bundlemgr:main',
+            'swmgr = pyhostprep.swmgr:main'
+        ]
     },
     package_data={'pyhostprep': ['data/config/*', 'data/playbooks/*']},
     install_requires=[
