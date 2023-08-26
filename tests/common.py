@@ -136,6 +136,7 @@ def start_container(image: str, platform: str = "linux/amd64", volume_mount: str
                                              privileged=True,
                                              platform=platform,
                                              name="pytest",
+                                             ports={'8091/tcp': 8091},
                                              security_opt=["seccomp=unconfined", "apparmor=unconfined"],
                                              volumes=[f"{volume.name}:{volume_mount}"],
                                              command=["/usr/sbin/init"]
