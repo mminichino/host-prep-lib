@@ -41,7 +41,7 @@ class ServerConfig:
     @classmethod
     def create(cls,
                name: str,
-               ip_list: list[str],
+               ip_list: List[str],
                services: Sequence[str] = ("data", "index", "query"),
                username: str = "Administrator",
                password: str = "password",

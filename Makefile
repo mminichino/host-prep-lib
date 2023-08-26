@@ -3,6 +3,7 @@ export PYTHONPATH := $(shell pwd)/test:$(shell pwd):$(PYTHONPATH)
 
 version:
 		bumpversion patch
+		git push
 setup:
 		python setup.py sdist
 push:
