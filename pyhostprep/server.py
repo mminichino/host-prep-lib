@@ -3,12 +3,18 @@
 
 import attr
 import psutil
+import logging
+import socket
+import time
 from enum import Enum
 from cbcmgr.httpsessionmgr import APISession
 from typing import Optional, List, Sequence
 from pyhostprep.network import NetworkInfo
 from pyhostprep.command import RunShellCommand, RCNotZero
 from pyhostprep.retry import retry
+
+logger = logging.getLogger('hostprep.server')
+logger.addHandler(logging.NullHandler())
 
 
 class ClusterSetupError(Exception):
@@ -81,6 +87,13 @@ class CouchbaseServer(object):
         self.eventing_quota = None
         self.internal_ip, self.external_ip, self.external_access = self.get_net_config()
         self.get_mem_config()
+
+        self.admin_port = 8091
+        if not self.wait_port(self.internal_ip, self.admin_port):
+            raise ClusterSetupError(f"Host {self.internal_ip}:{self.admin_port} is not reachable")
+        if not self.wait_port(self.rally_ip_address, self.admin_port):
+            raise ClusterSetupError(f"Host {self.rally_ip_address}:{self.admin_port} is not reachable")
+        self.cluster_wait()
 
     def get_mem_config(self):
         host_mem = psutil.virtual_memory()
@@ -375,3 +388,20 @@ class CouchbaseServer(object):
         else:
             if not self.is_node():
                 self.node_add()
+
+    @staticmethod
+    def wait_port(address: str, port: int = 8091, retry_count=300, factor=0.1):
+        for retry_number in range(retry_count + 1):
+            socket.setdefaulttimeout(1)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            result = sock.connect_ex((address, port))
+            sock.close()
+            if result == 0:
+                return True
+            else:
+                if retry_number == retry_count:
+                    return False
+                logger.info(f"Waiting for {address} to become reachable")
+                wait = factor
+                wait *= (2 ** (retry_number + 1))
+                time.sleep(wait)

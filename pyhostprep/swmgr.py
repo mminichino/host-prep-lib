@@ -42,6 +42,7 @@ class SWMgrCLI(CLI):
                           self.options.data_path)
         cbs = CouchbaseServer(sc)
         cbs.bootstrap()
+        cbs.rebalance()
 
     def run(self):
         if self.options.command == "cluster":

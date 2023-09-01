@@ -33,7 +33,7 @@ class SoftwareManager(object):
         'debian': 'deb',
     }
     os_version_list = {
-        'amzn': ['2023'],
+        'amzn': ['2', '2023'],
         'rhel': ['8', '9'],
         'centos': ['8'],
         'ol': ['8', '9'],
