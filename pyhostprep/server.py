@@ -183,7 +183,7 @@ class CouchbaseServer(object):
 
         return True
 
-    def node_init(self):
+    def node_init(self, cluster_init: bool = False):
         if self.is_node():
             return True
 
@@ -192,12 +192,16 @@ class CouchbaseServer(object):
             "--cluster", self.rally_ip_address,
             "--username", self.username,
             "--password", self.password,
-            "--node-init-hostname", self.rally_ip_address,
             "--node-init-data-path", self.data_path,
             "--node-init-index-path", self.data_path,
             "--node-init-analytics-path", self.data_path,
             "--node-init-eventing-path", self.data_path,
         ]
+
+        if cluster_init:
+            cmd.extend([
+                "--node-init-hostname", self.rally_ip_address,
+            ])
 
         try:
             RunShellCommand().cmd_output(cmd, "/var/tmp")
@@ -207,7 +211,7 @@ class CouchbaseServer(object):
         return True
 
     def cluster_init(self):
-        self.node_init()
+        self.node_init(cluster_init=True)
 
         cmd = [
             "/opt/couchbase/bin/couchbase-cli", "cluster-init",
