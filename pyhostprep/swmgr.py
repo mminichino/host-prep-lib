@@ -22,7 +22,7 @@ class SWMgrCLI(CLI):
         command_parser = self.parser.add_subparsers(dest='command')
         command_parser.required = True
         cluster = command_parser.add_parser('cluster')
-        cluster.add_argument('-n', '--name', dest='name', action='store')
+        cluster.add_argument('-n', '--name', dest='name', action='store', default='cbdb')
         cluster.add_argument('-l', '--ip_list', dest='ip_list', action='store')
         cluster.add_argument('-s', '--services', dest='services', action='store', default='data,index,query')
         cluster.add_argument('-u', '--username', dest='username', action='store', default='Administrator')
@@ -30,8 +30,11 @@ class SWMgrCLI(CLI):
         cluster.add_argument('-i', '--index_mem', dest='index_mem', action='store', default='default')
         cluster.add_argument('-g', '--group', dest='group', action='store', default='primary')
         cluster.add_argument('-d', '--data_path', dest='data_path', action='store', default='/opt/couchbase/var/lib/couchbase/data')
+        cluster_action = cluster.add_subparsers(dest='cluster_command')
+        cluster_action.add_parser('create')
+        cluster_action.add_parser('rebalance')
 
-    def cluster_bootstrap(self):
+    def cluster_operations(self):
         sc = ServerConfig(self.options.name,
                           self.options.ip_list.split(','),
                           self.options.services.split(','),
@@ -41,12 +44,14 @@ class SWMgrCLI(CLI):
                           self.options.group,
                           self.options.data_path)
         cbs = CouchbaseServer(sc)
-        cbs.bootstrap()
-        cbs.rebalance()
+        if self.options.cluster_command == "create":
+            cbs.bootstrap()
+        elif self.options.cluster_command == "rebalance":
+            cbs.rebalance()
 
     def run(self):
         if self.options.command == "cluster":
-            self.cluster_bootstrap()
+            self.cluster_operations()
 
 
 def main(args=None):
