@@ -49,7 +49,8 @@ class SWMgrCLI(CLI):
         if self.options.cluster_command == "create":
             cbs.bootstrap()
         elif self.options.cluster_command == "rebalance":
-            cbs.rebalance()
+            pass
+            # cbs.rebalance()
 
     def run(self):
         if self.options.command == "cluster":
