@@ -5,7 +5,6 @@ from typing import Union, List
 import subprocess
 import logging
 import io
-from io import BytesIO
 
 logger = logging.getLogger('hostprep.shell')
 logger.addHandler(logging.NullHandler())
@@ -47,12 +46,15 @@ class RunShellCommand(object):
         return buffer
 
     @staticmethod
-    def cmd_output(command: Union[str, List[str]], directory: str, split: bool = False, split_sep: str = None):
+    def cmd_output(command: Union[str, List[str]], directory: str, split: bool = False, split_sep: str = None, no_raise: bool = False):
         out_lines = []
         try:
-            output: BytesIO = RunShellCommand().cmd_exec(command, directory)
+            output: io.BytesIO = RunShellCommand().cmd_exec(command, directory)
         except ShellCommandError as err:
-            raise RCNotZero(err)
+            if not no_raise:
+                raise RCNotZero(err)
+            else:
+                return None
 
         while True:
             line = output.readline()

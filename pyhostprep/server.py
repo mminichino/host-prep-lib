@@ -11,7 +11,6 @@ from cbcmgr.httpsessionmgr import APISession
 from typing import Optional, List, Sequence
 from pyhostprep.network import NetworkInfo
 from pyhostprep.command import RunShellCommand, RCNotZero
-from pyhostprep.retry import retry
 
 logger = logging.getLogger('hostprep.server')
 logger.addHandler(logging.NullHandler())
@@ -93,7 +92,6 @@ class CouchbaseServer(object):
             raise ClusterSetupError(f"Host {self.internal_ip}:{self.admin_port} is not reachable")
         if not self.wait_port(self.rally_ip_address, self.admin_port):
             raise ClusterSetupError(f"Host {self.rally_ip_address}:{self.admin_port} is not reachable")
-        self.cluster_wait()
 
     def get_mem_config(self):
         host_mem = psutil.virtual_memory()
@@ -371,15 +369,24 @@ class CouchbaseServer(object):
 
         return True
 
-    @retry()
-    def cluster_wait(self):
-        cmd = [
-            "/opt/couchbase/bin/couchbase-cli", "server-list",
-            "--cluster", self.rally_ip_address,
-            "--username", self.username,
-            "--password", self.password,
-        ]
-        RunShellCommand().cmd_output(cmd, "/var/tmp")
+    def cluster_wait(self, retry_count=300, factor=0.1):
+        for retry_number in range(retry_count + 1):
+            cmd = [
+                "/opt/couchbase/bin/couchbase-cli", "server-list",
+                "--cluster", self.rally_ip_address,
+                "--username", self.username,
+                "--password", self.password,
+            ]
+            result = RunShellCommand().cmd_output(cmd, "/var/tmp", no_raise=True)
+            if result is not None:
+                return True
+            else:
+                if retry_number == retry_count:
+                    return False
+                logger.info(f"Waiting for cluster to initialize")
+                wait = factor
+                wait *= (2 ** (retry_number + 1))
+                time.sleep(wait)
 
     def bootstrap(self):
         if self.internal_ip == self.rally_ip_address:
@@ -387,6 +394,8 @@ class CouchbaseServer(object):
                 self.cluster_init()
         else:
             if not self.is_node():
+                if not self.cluster_wait():
+                    raise ClusterSetupError(f"can not add node {self.internal_ip} rally node is unreachable")
                 self.node_add()
 
     @staticmethod
@@ -401,7 +410,7 @@ class CouchbaseServer(object):
             else:
                 if retry_number == retry_count:
                     return False
-                logger.info(f"Waiting for {address} to become reachable")
+                logger.info(f"Waiting for {address}:{port} to become reachable")
                 wait = factor
                 wait *= (2 ** (retry_number + 1))
                 time.sleep(wait)
