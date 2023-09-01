@@ -21,7 +21,7 @@ class SWMgrCLI(CLI):
     def local_args(self):
         command_parser = self.parser.add_subparsers(dest='command')
         command_parser.required = True
-        cluster = command_parser.add_parser('cluster')
+        cluster = command_parser.add_parser('cluster', add_help=False)
         cluster.add_argument('-n', '--name', dest='name', action='store', default='cbdb')
         cluster.add_argument('-l', '--ip_list', dest='ip_list', action='store')
         cluster.add_argument('-s', '--services', dest='services', action='store', default='data,index,query')
@@ -31,8 +31,8 @@ class SWMgrCLI(CLI):
         cluster.add_argument('-g', '--group', dest='group', action='store', default='primary')
         cluster.add_argument('-d', '--data_path', dest='data_path', action='store', default='/opt/couchbase/var/lib/couchbase/data')
         cluster_action = cluster.add_subparsers(dest='cluster_command')
-        cluster_action.add_parser('create', parents=[cluster])
-        cluster_action.add_parser('rebalance', parents=[cluster])
+        cluster_action.add_parser('create', parents=[cluster], add_help=False)
+        cluster_action.add_parser('rebalance', parents=[cluster], add_help=False)
 
     def cluster_operations(self):
         sc = ServerConfig(self.options.name,
