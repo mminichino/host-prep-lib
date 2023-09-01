@@ -246,7 +246,7 @@ class CouchbaseServer(object):
             "--server-add-username", self.username,
             "--server-add-password", self.password,
             "--server-add", self.internal_ip,
-            "--services" ','.join(self.services)
+            "--services", ','.join(self.services)
         ]
 
         try:
