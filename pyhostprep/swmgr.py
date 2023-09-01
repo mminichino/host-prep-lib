@@ -3,6 +3,7 @@
 
 import logging
 import warnings
+import argparse
 from overrides import override
 from pyhostprep.cli import CLI
 from pyhostprep.server import CouchbaseServer, IndexMemoryOption
@@ -19,20 +20,21 @@ class SWMgrCLI(CLI):
 
     @override()
     def local_args(self):
-        command_parser = self.parser.add_subparsers(dest='command')
-        command_parser.required = True
-        cluster = command_parser.add_parser('cluster', add_help=False)
-        cluster.add_argument('-n', '--name', dest='name', action='store', default='cbdb')
-        cluster.add_argument('-l', '--ip_list', dest='ip_list', action='store')
-        cluster.add_argument('-s', '--services', dest='services', action='store', default='data,index,query')
-        cluster.add_argument('-u', '--username', dest='username', action='store', default='Administrator')
-        cluster.add_argument('-p', '--password', dest='password', action='store', default='password')
-        cluster.add_argument('-i', '--index_mem', dest='index_mem', action='store', default='default')
-        cluster.add_argument('-g', '--group', dest='group', action='store', default='primary')
-        cluster.add_argument('-d', '--data_path', dest='data_path', action='store', default='/opt/couchbase/var/lib/couchbase/data')
-        cluster_action = cluster.add_subparsers(dest='cluster_command')
-        cluster_action.add_parser('create', parents=[cluster], add_help=False)
-        cluster_action.add_parser('rebalance', parents=[cluster], add_help=False)
+        opt_parser = argparse.ArgumentParser(parents=[self.parser], add_help=False)
+        opt_parser.add_argument('-n', '--name', dest='name', action='store', default='cbdb')
+        opt_parser.add_argument('-l', '--ip_list', dest='ip_list', action='store')
+        opt_parser.add_argument('-s', '--services', dest='services', action='store', default='data,index,query')
+        opt_parser.add_argument('-u', '--username', dest='username', action='store', default='Administrator')
+        opt_parser.add_argument('-p', '--password', dest='password', action='store', default='password')
+        opt_parser.add_argument('-i', '--index_mem', dest='index_mem', action='store', default='default')
+        opt_parser.add_argument('-g', '--group', dest='group', action='store', default='primary')
+        opt_parser.add_argument('-D', '--data_path', dest='data_path', action='store', default='/opt/couchbase/var/lib/couchbase/data')
+
+        command_subparser = self.parser.add_subparsers(dest='command')
+        cluster_parser = command_subparser.add_parser('cluster', parents=[opt_parser], add_help=False)
+        action_subparser = cluster_parser.add_subparsers(dest='cluster_command')
+        action_subparser.add_parser('create', parents=[opt_parser], add_help=False)
+        action_subparser.add_parser('rebalance', parents=[opt_parser], add_help=False)
 
     def cluster_operations(self):
         sc = ServerConfig(self.options.name,
