@@ -358,6 +358,12 @@ class CouchbaseServer(object):
         return True
 
     def rebalance(self):
+        if self.internal_ip != self.rally_ip_address:
+            return True
+
+        if not self.cluster_wait(min_nodes=len(self.ip_list)):
+            raise ClusterSetupError(f"rebalance: not all nodes joined the cluster")
+
         cmd = [
             "/opt/couchbase/bin/couchbase-cli", "rebalance",
             "--cluster", self.rally_ip_address,
@@ -373,7 +379,7 @@ class CouchbaseServer(object):
 
         return True
 
-    def cluster_wait(self, retry_count=300, factor=0.1):
+    def cluster_wait(self, retry_count=300, factor=0.1, min_nodes=1):
         for retry_number in range(retry_count + 1):
             cmd = [
                 "/opt/couchbase/bin/couchbase-cli", "server-list",
@@ -382,8 +388,8 @@ class CouchbaseServer(object):
                 "--password", self.password,
             ]
             result = RunShellCommand().cmd_output(cmd, "/var/tmp", no_raise=True)
-            if result is not None:
-                return True
+            if result is not None and len(result) >= min_nodes:
+                return result
             else:
                 if retry_number == retry_count:
                     return False
