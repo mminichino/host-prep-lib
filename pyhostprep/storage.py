@@ -13,7 +13,7 @@ class StorageMgrError(Exception):
 class StorageManager(object):
 
     def __init__(self):
-        device_list = []
+        self.device_list = []
         cmd = ["lsblk", "--json"]
 
         try:
@@ -31,9 +31,18 @@ class StorageManager(object):
             if device.get('mountpoints', [])[0] is not None:
                 continue
             device_name = f"/dev/{device['name']}"
+            self.device_list.append(device_name)
 
+    def get_device(self, index: int = 1):
+        for device in self.device_list:
             try:
-                dev = ebs_nvme_device(device_name)
-                print(dev.get_block_device())
+                dev = ebs_nvme_device(device)
+                name = dev.get_block_device(stripped=True)
+                check_name = f"/dev/{name}"
             except OSError:
-                pass
+                check_name = device
+
+            if check_name[-1] == chr(ord('`') + index):
+                return device
+
+        return None
