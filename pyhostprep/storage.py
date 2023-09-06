@@ -12,6 +12,7 @@ class StorageMgrError(Exception):
 class StorageManager(object):
 
     def __init__(self):
+        device_list = []
         cmd = ["lsblk", "--json"]
 
         try:
@@ -24,5 +25,9 @@ class StorageManager(object):
         for device in disk_data.get('blockdevices', []):
             if device.get('type') == "loop":
                 continue
-            print(device['name'])
-            print(device['mountpoints'])
+            if device.get('children') is not None:
+                continue
+            if device.get('mountpoints', [])[0] is not None:
+                continue
+            device_name = f"/dev/{device['name']}"
+            print(device_name)
