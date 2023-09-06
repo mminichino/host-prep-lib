@@ -76,7 +76,7 @@ class CouchbaseServer(object):
         self.data_path = config.data_path
         self.index_mem_opt = config.index_mem_opt
         self.availability_zone = config.availability_zone
-        self.services = config.services
+        self.services = config.services if config.services != ["default"] else ["data", "index", "query"]
 
         self.rally_ip_address = self.ip_list[0]
         self.data_quota = None
