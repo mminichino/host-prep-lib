@@ -19,7 +19,7 @@ class StorageManager(object):
         except RCNotZero as err:
             raise StorageMgrError(f"can not get disk info: {err}")
 
-        disk_data = json.loads(output)
+        disk_data = json.loads('\n'.join(output))
 
         for device in disk_data.get('blockdevices', []):
             print(device['name'])
