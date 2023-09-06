@@ -22,4 +22,7 @@ class StorageManager(object):
         disk_data = json.loads('\n'.join(output))
 
         for device in disk_data.get('blockdevices', []):
+            if device.get('type') == "loop":
+                continue
             print(device['name'])
+            print(device['mountpoints'])
