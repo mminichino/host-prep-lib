@@ -3,6 +3,7 @@
 
 import json
 from pyhostprep.command import RunShellCommand, RCNotZero
+from pyhostprep.ebsnvme import ebs_nvme_device
 
 
 class StorageMgrError(Exception):
@@ -30,4 +31,9 @@ class StorageManager(object):
             if device.get('mountpoints', [])[0] is not None:
                 continue
             device_name = f"/dev/{device['name']}"
-            print(device_name)
+
+            try:
+                dev = ebs_nvme_device(device_name)
+                print(dev.get_block_device())
+            except OSError:
+                pass
