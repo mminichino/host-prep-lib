@@ -26,15 +26,14 @@ class StorageManager(object):
         for device in disk_data.get('blockdevices', []):
             if device.get('type') == "loop":
                 continue
-            if device.get('children') is not None:
-                continue
-            if device.get('mountpoints', [])[0] is not None:
-                continue
             device_name = f"/dev/{device['name']}"
-            self.device_list.append(device_name)
+            part_list = []
+            if device.get('children'):
+                part_list = [p.get('name') for p in device.get('children')]
+            self.device_list.append(dict(name=device_name, partitions=part_list))
 
     def get_device(self, index: int = 1):
-        for device in self.device_list:
+        for device in [d.get('name') for d in self.device_list]:
             try:
                 dev = ebs_nvme_device(device)
                 name = dev.get_block_device(stripped=True)
@@ -45,4 +44,11 @@ class StorageManager(object):
             if check_name[-1] == chr(ord('`') + index):
                 return device
 
+        return None
+
+    def get_partition(self, dev: str, number: int = 1):
+        for device in self.device_list:
+            if device.get('name') == dev:
+                if len(device.get('partitions')) >= number:
+                    return device.get('partitions')[number - 1]
         return None

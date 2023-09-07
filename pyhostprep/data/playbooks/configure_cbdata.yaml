@@ -1,0 +1,15 @@
+---
+- hosts: localhost
+  gather_facts: no
+  name: Swap Disk
+  tasks:
+    - name: Create Partition
+      community.general.parted:
+        device: {{ data_disk_device }}
+        number: 1
+        state: present
+        fs_type: ext4
+    - name: Create Filesystem
+      community.general.filesystem:
+        fstype: ext4
+        dev: {{ data_disk_device }}1
