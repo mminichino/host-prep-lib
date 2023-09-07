@@ -11,12 +11,13 @@ from cbcmgr.httpsessionmgr import APISession
 from typing import Optional, List, Sequence
 from pyhostprep.network import NetworkInfo
 from pyhostprep.command import RunShellCommand, RCNotZero
+from pyhostprep.exception import FatalError
 
 logger = logging.getLogger('hostprep.server')
 logger.addHandler(logging.NullHandler())
 
 
-class ClusterSetupError(Exception):
+class ClusterSetupError(FatalError):
     pass
 
 
@@ -89,8 +90,10 @@ class CouchbaseServer(object):
 
         self.admin_port = 8091
         if not self.wait_port(self.internal_ip, self.admin_port):
+            logger.error(f"Can not connect to admin port on this host ({self.internal_ip})")
             raise ClusterSetupError(f"Host {self.internal_ip}:{self.admin_port} is not reachable")
         if not self.wait_port(self.rally_ip_address, self.admin_port):
+            logger.error(f"Can not connect to admin port on rally node {self.rally_ip_address}")
             raise ClusterSetupError(f"Host {self.rally_ip_address}:{self.admin_port} is not reachable")
 
     def get_mem_config(self):
@@ -401,11 +404,13 @@ class CouchbaseServer(object):
     def bootstrap(self):
         if self.internal_ip == self.rally_ip_address:
             if not self.is_cluster():
+                logger.info(f"Creating rally node {self.rally_ip_address}")
                 self.cluster_init()
         else:
             if not self.is_node():
                 if not self.cluster_wait():
                     raise ClusterSetupError(f"can not add node {self.internal_ip} rally node is unreachable")
+                logger.info(f"Creating cluster node {self.internal_ip}")
                 self.node_add()
 
     @staticmethod

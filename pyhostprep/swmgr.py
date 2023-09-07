@@ -47,8 +47,10 @@ class SWMgrCLI(CLI):
                           self.options.data_path)
         cbs = CouchbaseServer(sc)
         if self.options.cluster_command == "create":
+            logger.info(f"Creating cluster {self.options.name} node")
             cbs.bootstrap()
         elif self.options.cluster_command == "rebalance":
+            logger.info(f"Balancing cluster {self.options.name}")
             cbs.rebalance()
 
     def run(self):
