@@ -50,5 +50,6 @@ class StorageManager(object):
         for device in self.device_list:
             if device.get('name') == dev:
                 if len(device.get('partitions')) >= number:
-                    return device.get('partitions')[number - 1]
+                    part_dev = device.get('partitions')[number - 1]
+                    return f"/dev/{part_dev}"
         return None

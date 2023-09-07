@@ -16,7 +16,8 @@ setup(
     entry_points={
         'console_scripts': [
             'bundlemgr = pyhostprep.bundlemgr:main',
-            'swmgr = pyhostprep.swmgr:main'
+            'swmgr = pyhostprep.swmgr:main',
+            'storagemgr = pyhostprep.storagemgr:main',
         ]
     },
     package_data={'pyhostprep': ['data/config/*', 'data/playbooks/*']},
