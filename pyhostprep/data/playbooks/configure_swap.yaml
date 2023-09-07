@@ -3,6 +3,9 @@
   gather_facts: no
   name: Swap Disk
   tasks:
+    - name: Get Swap Device
+      ansible.builtin.shell:
+        cmd: storagemgr -d -n 2
     - name: Make Swap Disk
       ansible.builtin.shell:
         cmd: mkswap {{ swap_disk_device }}
