@@ -3,13 +3,46 @@
   gather_facts: no
   name: Swap Disk
   tasks:
+    - name: Get Data Device
+      ansible.builtin.shell:
+        cmd: storagemgr -D -n 3
+      register: data_disk_output
+    - set_fact:
+        data_disk_device: "{{ data_disk_output.stdout }}"
+    - name: Check Disk Device
+      ansible.builtin.fail:
+        msg: "Data disk not found"
+      when: data_disk_device is undefined or data_disk_device == None or data_disk_device | length == 0
     - name: Create Partition
       community.general.parted:
-        device: {{ data_disk_device }}
+        device: "{{ data_disk_device }}"
         number: 1
         state: present
         fs_type: ext4
+    - name: Get Partition Device
+      ansible.builtin.shell:
+        cmd: "storagemgr -p {{ data_disk_device }}"
+      register: data_partition_output
+    - set_fact:
+        data_partition_device: "{{ data_partition_output.stdout }}"
+    - name: Check Disk Partition
+      ansible.builtin.fail:
+        msg: "Disk partition not found"
+      when: data_partition_device is undefined or data_partition_device == None or data_partition_device | length == 0
     - name: Create Filesystem
       community.general.filesystem:
         fstype: ext4
-        dev: {{ data_disk_device }}1
+        dev: "{{ data_partition_device }}"
+    - name: Mount Filesystem
+      ansible.posix.mount:
+        path: /cbdata
+        src: "{{ data_partition_device }}"
+        fstype: ext4
+        state: mounted
+    - name: Set Mount Permissions
+      ansible.builtin.file:
+        path: /cbdata
+        owner: couchbase
+        group: couchbase
+        mode: '0775'
+        recurse: yes

@@ -5,17 +5,24 @@
   tasks:
     - name: Get Swap Device
       ansible.builtin.shell:
-        cmd: storagemgr -d -n 2
+        cmd: storagemgr -D -n 2
+      register: swap_disk_output
+    - set_fact:
+        swap_disk_device: "{{ swap_disk_output.stdout }}"
+    - name: Check Disk Device
+      ansible.builtin.fail:
+        msg: "Swap disk not found"
+      when: swap_disk_device is undefined or swap_disk_device == None or swap_disk_device | length == 0
     - name: Make Swap Disk
       ansible.builtin.shell:
-        cmd: mkswap {{ swap_disk_device }}
+        cmd: "mkswap {{ swap_disk_device }}"
     - name: Swap To Disk
       ansible.builtin.shell:
-        cmd: swapon {{ swap_disk_device }}
+        cmd: "swapon {{ swap_disk_device }}"
     - name: Mount Swap
       ansible.posix.mount:
         path: none
-        src: {{ swap_disk_device }}
+        src: "{{ swap_disk_device }}"
         fstype: swap
         opts: sw
         passno: 0

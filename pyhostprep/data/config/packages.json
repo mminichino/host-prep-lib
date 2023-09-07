@@ -176,6 +176,26 @@
         "post": null
       }
     },
+    "Swap": {
+      "centos|rhel|amzn|rocky|ol|fedora|ubuntu|debian|opensuse-leap|sles": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "configure_swap.yaml",
+        "post": null
+      }
+    },
+    "CBDataDisk": {
+      "centos|rhel|amzn|rocky|ol|fedora|ubuntu|debian|opensuse-leap|sles": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "configure_cbdata.yaml",
+        "post": null
+      }
+    },
     "CBS": {
       "centos|rhel|amzn|rocky|ol|fedora": {
         "requires": [
