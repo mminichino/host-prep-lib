@@ -19,7 +19,7 @@ class StorageMgrCLI(CLI):
     @override()
     def local_args(self):
         self.parser.add_argument('-p', '--partition', action='store', help="Get partition for device")
-        self.parser.add_argument('-d', '--device', action='store_true', help="Get disk device")
+        self.parser.add_argument('-D', '--disk', action='store_true', help="Get disk device")
         self.parser.add_argument('-n', '--number', action='store', help="Partition number", type=int, default=1)
 
     def run(self):
