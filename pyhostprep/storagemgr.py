@@ -27,7 +27,7 @@ class StorageMgrCLI(CLI):
             device = StorageManager().get_partition(self.options.partition, self.options.number)
             if device:
                 print(device)
-        elif self.options.device:
+        elif self.options.disk:
             device = StorageManager().get_device(self.options.number)
             if device:
                 print(device)
