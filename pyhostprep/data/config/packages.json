@@ -204,15 +204,14 @@
           "Firewall",
           "THP",
           "Swappiness",
-          "Swap",
-          "CBDataDisk"
+          "Swap"
         ],
         "extra_vars": [
           "cbs_download_url"
         ],
         "pre": null,
         "run": "install_cbs_yum.yaml",
-        "post": null
+        "post": "configure_cbdata.yaml"
       },
       "ubuntu|debian": {
         "requires": [
@@ -221,15 +220,14 @@
           "Firewall",
           "THP",
           "Swappiness",
-          "Swap",
-          "CBDataDisk"
+          "Swap"
         ],
         "extra_vars": [
           "cbs_download_url"
         ],
         "pre": null,
         "run": "install_cbs_apt.yaml",
-        "post": null
+        "post": "configure_cbdata.yaml"
       },
       "opensuse-leap|sles": {
         "requires": [
@@ -238,15 +236,14 @@
           "Firewall",
           "THP",
           "Swappiness",
-          "Swap",
-          "CBDataDisk"
+          "Swap"
         ],
         "extra_vars": [
           "cbs_download_url"
         ],
         "pre": null,
         "run": "install_cbs_sles.yaml",
-        "post": null
+        "post": "configure_cbdata.yaml"
       }
     }
   }
