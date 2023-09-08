@@ -215,6 +215,8 @@ class CouchbaseServer(object):
                 "--node-init-hostname", self.rally_ip_address,
             ])
 
+        logger.info(f"Initializing node {self.internal_ip}")
+
         try:
             RunShellCommand().cmd_output(cmd, "/var/tmp")
         except RCNotZero as err:
@@ -241,6 +243,8 @@ class CouchbaseServer(object):
             "--services", ','.join(self.services)
         ]
 
+        logger.info(f"Creating cluster on node {self.internal_ip}")
+
         try:
             RunShellCommand().cmd_output(cmd, "/var/tmp")
         except RCNotZero as err:
@@ -264,6 +268,8 @@ class CouchbaseServer(object):
             "--server-add", self.internal_ip,
             "--services", ','.join(self.services)
         ]
+
+        logger.info(f"Adding node {self.internal_ip} to cluster at {self.rally_ip_address}")
 
         try:
             RunShellCommand().cmd_output(cmd, "/var/tmp")
