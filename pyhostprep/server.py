@@ -88,14 +88,7 @@ class CouchbaseServer(object):
         self.internal_ip, self.external_ip, self.external_access = self.get_net_config()
         self.get_mem_config()
 
-        logger.info(f"Data path      : {self.data_path}")
-        logger.info(f"Member list    : {','.join(self.ip_list)}")
-        logger.info(f"Services       : {','.join(self.services)}")
-        logger.info(f"Data quota     : {self.data_quota}")
-        logger.info(f"Analytics quota: {self.analytics_quota}")
-        logger.info(f"Index quota    : {self.index_quota}")
-        logger.info(f"FTS quota      : {self.fts_quota}")
-        logger.info(f"Eventing quota : {self.eventing_quota}")
+        logger.info(f"Member list: {','.join(self.ip_list)}")
 
         self.admin_port = 8091
         if not self.wait_port(self.internal_ip, self.admin_port):
@@ -413,6 +406,14 @@ class CouchbaseServer(object):
                 time.sleep(wait)
 
     def bootstrap(self):
+        logger.info(f"Data path      : {self.data_path}")
+        logger.info(f"Services       : {','.join(self.services)}")
+        logger.info(f"Data quota     : {self.data_quota}")
+        logger.info(f"Analytics quota: {self.analytics_quota}")
+        logger.info(f"Index quota    : {self.index_quota}")
+        logger.info(f"FTS quota      : {self.fts_quota}")
+        logger.info(f"Eventing quota : {self.eventing_quota}")
+
         if self.internal_ip == self.rally_ip_address:
             if not self.is_cluster():
                 logger.info(f"Creating rally node {self.rally_ip_address}")
