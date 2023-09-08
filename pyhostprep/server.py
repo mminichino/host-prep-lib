@@ -201,7 +201,7 @@ class CouchbaseServer(object):
 
         cmd = [
             "/opt/couchbase/bin/couchbase-cli", "node-init",
-            "--cluster", self.rally_ip_address,
+            "--cluster", self.internal_ip,
             "--username", self.username,
             "--password", self.password,
             "--node-init-hostname", self.internal_ip,
