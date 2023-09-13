@@ -4,6 +4,7 @@
 import logging
 import warnings
 import argparse
+import sys
 from overrides import override
 from pyhostprep.cli import CLI
 from pyhostprep.server import CouchbaseServer, IndexMemoryOption
@@ -61,3 +62,4 @@ class SWMgrCLI(CLI):
 def main(args=None):
     cli = SWMgrCLI(args)
     cli.run()
+    sys.exit(0)

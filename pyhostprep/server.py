@@ -384,6 +384,7 @@ class CouchbaseServer(object):
         except RCNotZero as err:
             raise ClusterSetupError(f"Can not rebalance cluster: {err}")
 
+        print("Success: Rebalance")
         return True
 
     def cluster_wait(self, retry_count=300, factor=0.1, min_nodes=1):
@@ -418,12 +419,14 @@ class CouchbaseServer(object):
             if not self.is_cluster():
                 logger.info(f"Creating rally node {self.rally_ip_address}")
                 self.cluster_init()
+                print("Success: Cluster Init")
         else:
             if not self.is_node():
                 if not self.cluster_wait():
                     raise ClusterSetupError(f"can not add node {self.internal_ip} rally node is unreachable")
                 logger.info(f"Creating cluster node {self.internal_ip}")
                 self.node_add()
+                print("Success: Node Addition")
 
     @staticmethod
     def wait_port(address: str, port: int = 8091, retry_count=300, factor=0.1):
