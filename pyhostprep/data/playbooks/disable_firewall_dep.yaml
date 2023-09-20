@@ -1,17 +1,13 @@
 ---
 - hosts: localhost
   gather_facts: no
-  name: Check if ufw is installed
+  name: Disable Firewall via ufw
   tasks:
     - name: Check For Binary
       stat: path=/usr/sbin/ufw
       register: ufw_file
     - meta: end_play
       when: not ufw_file.stat.exists
-    - hosts: localhost
-      gather_facts: no
-      name: Disable Service
-      tasks:
-        - name: Firewall
-          community.general.ufw:
-            state: disabled
+    - name: Disable Firewall Service
+      community.general.ufw:
+        state: disabled
