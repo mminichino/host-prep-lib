@@ -4,12 +4,9 @@
 import attr
 import re
 import logging
-import socket
-import time
-from enum import Enum
-from cbcmgr.httpsessionmgr import APISession
-from typing import Optional, List, Sequence
-from pyhostprep.network import NetworkInfo
+import os
+import jinja2
+from typing import Optional, List
 from pyhostprep.command import RunShellCommand, RCNotZero
 from pyhostprep.exception import FatalError
 from pyhostprep import get_config_file
@@ -61,6 +58,14 @@ class SyncGateway(object):
 
         self.connect_ip = self.ip_list[0]
 
+    def configure(self):
+        sw_version = self.get_version()
+
+        if sw_version and sw_version == "3":
+            self.copy_config_file("sync_gateway_3.json")
+        else:
+            self.copy_config_file("sync_gateway_2.json")
+
     def get_version(self):
         cmd = [
             '/opt/couchbase-sync-gateway/bin/sync_gateway',
@@ -69,11 +74,26 @@ class SyncGateway(object):
 
         try:
             result = RunShellCommand().cmd_output(cmd, self.root_path)
-            pattern = r"^.*\([0-9]\)\.[0-9]\.[0-9].*$"
+            pattern = r"^.*/([0-9])\.[0-9]\.[0-9].*$"
             match = re.search(pattern, result[0])
-            print(match.group(1))
+            if match and len(match.groups()) > 0:
+                return match.group(1)
+            else:
+                return None
         except RCNotZero as err:
             raise GatewaySetupError(f"ca not get software version: {err}")
 
-    def copy_config_file(self):
-        pass
+    def copy_config_file(self, source: str):
+        dest = os.path.join(self.root_path, 'sync_gateway.json')
+        src = get_config_file(source)
+        with open(src, 'r') as in_file:
+            input_data = in_file.read()
+            in_file.close()
+        env = jinja2.Environment(undefined=jinja2.DebugUndefined)
+        raw_template = env.from_string(input_data)
+        formatted_value = raw_template.render(
+            COUCHBASE_SERVER=self.connect_ip,
+            NODE_ZONE=self.username,
+            SERVICES=self.password
+        )
+        print(formatted_value)

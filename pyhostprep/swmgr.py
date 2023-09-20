@@ -67,7 +67,7 @@ class SWMgrCLI(CLI):
         sgw = SyncGateway(gc)
         if self.options.gateway_command == "configure":
             logger.info(f"Configuring Sync Gateway node")
-            sgw.get_version()
+            sgw.configure()
 
     def run(self):
         if self.options.command == "cluster":
