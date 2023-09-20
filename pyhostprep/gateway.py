@@ -2,7 +2,7 @@
 ##
 
 import attr
-import psutil
+import re
 import logging
 import socket
 import time
@@ -69,7 +69,9 @@ class SyncGateway(object):
 
         try:
             result = RunShellCommand().cmd_output(cmd, self.root_path)
-            print(result)
+            pattern = r"^.*\([0-9]\)\.[0-9]\.[0-9].*$"
+            match = re.search(pattern, result[0])
+            print(match.group(1))
         except RCNotZero as err:
             raise GatewaySetupError(f"ca not get software version: {err}")
 
