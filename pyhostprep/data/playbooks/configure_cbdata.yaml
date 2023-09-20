@@ -1,8 +1,13 @@
 ---
 - hosts: localhost
   gather_facts: no
-  name: Swap Disk
+  name: Data Disk
   tasks:
+    - name: Check For Container
+      stat: path=/.dockerenv
+      register: dockerenv
+    - meta: end_play
+      when: dockerenv.stat.exists
     - name: Get Data Device
       ansible.builtin.shell:
         cmd: storagemgr -D -n 3

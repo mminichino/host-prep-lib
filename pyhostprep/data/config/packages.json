@@ -246,7 +246,7 @@
         "post": "configure_cbdata.yaml"
       }
     },
-    "SGW": {
+    "InstallSGW": {
       "centos|rhel|amzn|rocky|ol|fedora": {
         "requires": [
           "Base",
@@ -277,6 +277,16 @@
         ],
         "pre": null,
         "run": "install_sgw_deb.yaml",
+        "post": null
+      }
+    },
+    "EnableSGW": {
+      "centos|rhel|amzn|rocky|ol|fedora|ubuntu|debian": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "enable_sgw.yaml",
         "post": null
       }
     }

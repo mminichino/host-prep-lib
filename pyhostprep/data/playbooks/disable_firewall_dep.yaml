@@ -3,14 +3,15 @@
   gather_facts: no
   name: Check if ufw is installed
   tasks:
-    - shell: which ufw
-      register: utility_found
-      ignore_errors: true
-- hosts: localhost
-  gather_facts: no
-  name: Disable Service
-  tasks:
-    - name: Firewall
-      community.general.ufw:
-        state: disabled
-      when: utility_found.rc == 0
+    - name: Check For Binary
+      stat: path=/usr/sbin/ufw
+      register: ufw_file
+    - meta: end_play
+      when: not ufw_file.stat.exists
+    - hosts: localhost
+      gather_facts: no
+      name: Disable Service
+      tasks:
+        - name: Firewall
+          community.general.ufw:
+            state: disabled

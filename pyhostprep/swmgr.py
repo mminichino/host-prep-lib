@@ -24,7 +24,7 @@ class SWMgrCLI(CLI):
     def local_args(self):
         opt_parser = argparse.ArgumentParser(parents=[self.parser], add_help=False)
         opt_parser.add_argument('-n', '--name', dest='name', action='store', default='cbdb')
-        opt_parser.add_argument('-l', '--ip_list', dest='ip_list', action='store')
+        opt_parser.add_argument('-l', '--ip_list', dest='ip_list', action='store', default='127.0.0.1')
         opt_parser.add_argument('-s', '--services', dest='services', action='store', default='data,index,query')
         opt_parser.add_argument('-u', '--username', dest='username', action='store', default='Administrator')
         opt_parser.add_argument('-p', '--password', dest='password', action='store', default='password')

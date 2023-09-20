@@ -1,0 +1,10 @@
+---
+- hosts: localhost
+  gather_facts: no
+  name: Enable Sync Gateway
+  tasks:
+    - name: Sync Gateway
+      ansible.builtin.systemd:
+        state: restarted
+        enabled: true
+        name: sync_gateway
