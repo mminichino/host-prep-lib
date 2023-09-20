@@ -3,6 +3,11 @@
   gather_facts: no
   name: Swap Disk
   tasks:
+    - name: Check For Container
+      stat: path=/.dockerenv
+      register: dockerenv
+    - meta: end_play
+      when: dockerenv.stat.exists
     - name: Get Swap Device
       ansible.builtin.shell:
         cmd: storagemgr -D -n 2
