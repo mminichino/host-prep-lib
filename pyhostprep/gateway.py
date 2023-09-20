@@ -93,7 +93,8 @@ class SyncGateway(object):
         raw_template = env.from_string(input_data)
         formatted_value = raw_template.render(
             COUCHBASE_SERVER=self.connect_ip,
-            NODE_ZONE=self.username,
-            SERVICES=self.password
+            USERNAME=self.username,
+            PASSWORD=self.password,
+            ROOT_DIRECTORY=self.root_path
         )
         print(formatted_value)

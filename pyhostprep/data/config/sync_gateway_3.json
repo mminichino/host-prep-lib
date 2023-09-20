@@ -11,7 +11,7 @@
     "admin_interface": ":4985"
   },
   "logging": {
-    "log_file_path": "/home/sync_gateway/logs",
+    "log_file_path": "{{ ROOT_DIRECTORY }}/logs",
     "redaction_level": "partial",
     "console": {
       "log_level": "debug",
