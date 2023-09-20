@@ -28,6 +28,7 @@ class SWMgrCLI(CLI):
         opt_parser.add_argument('-s', '--services', dest='services', action='store', default='data,index,query')
         opt_parser.add_argument('-u', '--username', dest='username', action='store', default='Administrator')
         opt_parser.add_argument('-p', '--password', dest='password', action='store', default='password')
+        opt_parser.add_argument('-b', '--bucket', dest='bucket', action='store', default='default')
         opt_parser.add_argument('-i', '--index_mem', dest='index_mem', action='store', default='default')
         opt_parser.add_argument('-g', '--group', dest='group', action='store', default='primary')
         opt_parser.add_argument('-D', '--data_path', dest='data_path', action='store', default='/opt/couchbase/var/lib/couchbase/data')
@@ -63,6 +64,7 @@ class SWMgrCLI(CLI):
         gc = GatewayConfig(self.options.ip_list.split(','),
                            self.options.username,
                            self.options.password,
+                           self.options.bucket,
                            self.options.sgw_path)
         sgw = SyncGateway(gc)
         if self.options.gateway_command == "configure":

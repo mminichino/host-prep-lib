@@ -2,7 +2,7 @@
   "databases": {
     "db": {
       "server": "couchbases://{{ COUCHBASE_SERVER }}",
-      "bucket": "default",
+      "bucket": "{{ BUCKET }}",
       "username": "{{ USERNAME }}",
       "password": "{{ PASSWORD }}",
       "users": { "GUEST": { "disabled": false, "admin_channels": ["*"] } },

@@ -24,6 +24,7 @@ class GatewayConfig:
     ip_list: Optional[List[str]] = attr.ib(default=None)
     username: Optional[str] = attr.ib(default="Administrator")
     password: Optional[str] = attr.ib(default="password")
+    bucket: Optional[str] = attr.ib(default="default")
     root_path: Optional[str] = attr.ib(default="/home/sync_gateway")
 
     @property
@@ -39,11 +40,13 @@ class GatewayConfig:
                ip_list: List[str],
                username: str = "Administrator",
                password: str = "password",
+               bucket: str = "default",
                root_path: str = "/home/sync_gateway"):
         return cls(
             ip_list,
             username,
             password,
+            bucket,
             root_path
         )
 
@@ -54,6 +57,7 @@ class SyncGateway(object):
         self.ip_list = config.ip_list
         self.username = config.username
         self.password = config.password
+        self.bucket = config.bucket
         self.root_path = config.root_path
 
         self.connect_ip = self.ip_list[0]
@@ -95,6 +99,9 @@ class SyncGateway(object):
             COUCHBASE_SERVER=self.connect_ip,
             USERNAME=self.username,
             PASSWORD=self.password,
+            BUCKET=self.bucket,
             ROOT_DIRECTORY=self.root_path
         )
-        print(formatted_value)
+        with open(dest, 'w') as out_file:
+            out_file.write(formatted_value)
+            out_file.close()
