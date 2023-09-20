@@ -60,6 +60,7 @@ class SoftwareBundle(object):
         bundle_data = self.packages.get("bundles", {}).get(bundle_name, {})
         for all_os, data in bundle_data.items():
             os_list = all_os.split('|')
+            print(f"Checking {self.os.os_name} against {os_list}")
             if self.os.os_name in os_list:
                 return Bundle.from_dict(bundle_name, data)
         raise BundleManagerError(f"bundle {bundle_name} not found for os {self.os.os_name}")
