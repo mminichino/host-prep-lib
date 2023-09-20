@@ -1,0 +1,8 @@
+---
+- hosts: localhost
+  gather_facts: no
+  name: Install Sync Gateway
+  tasks:
+    - name: Install Sync Gateway
+      ansible.builtin.apt:
+        deb: "{{ sgw_download_deb }}"

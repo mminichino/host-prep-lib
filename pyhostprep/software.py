@@ -111,3 +111,54 @@ class SoftwareManager(object):
             else:
                 return platform_link
         return None
+
+    @staticmethod
+    def get_sgw_rpm(version, arch):
+        return f"http://packages.couchbase.com/releases/couchbase-sync-gateway/{version}/couchbase-sync-gateway-enterprise_{version}_{arch}.rpm"
+
+    @staticmethod
+    def get_sgw_apt(version, arch):
+        return f"http://packages.couchbase.com/releases/couchbase-sync-gateway/{version}/couchbase-sync-gateway-enterprise_{version}_{arch}.deb"
+
+    def get_sgw_versions(self, op: SoftwareBundle):
+        sgw_git_release_url = 'https://api.github.com/repos/couchbase/sync_gateway/releases'
+        git_release_list = []
+        found_release_list = []
+        arch = op.os.architecture
+
+        session = requests.Session()
+        retries = Retry(total=60,
+                        backoff_factor=0.1,
+                        status_forcelist=[500, 501, 503])
+        session.mount('http://', HTTPAdapter(max_retries=retries))
+        session.mount('https://', HTTPAdapter(max_retries=retries))
+
+        response = requests.get(sgw_git_release_url, verify=False, timeout=15)
+
+        if response.status_code != 200:
+            raise Exception("Can not get Sync Gateway release data: error %d" % response.status_code)
+
+        try:
+            releases = json.loads(response.content)
+            for release in releases:
+                git_release_list.append(release['tag_name'])
+        except Exception as err:
+            raise Exception(f"can not process Sync Gateway release data: {err}")
+
+        for release in git_release_list:
+            check_url = self.get_sgw_rpm(release, arch)
+            response = requests.head(check_url, verify=False, timeout=15)
+
+            if response.status_code != 200:
+                continue
+
+            check_url = self.get_sgw_apt(release, arch)
+            response = requests.head(check_url, verify=False, timeout=15)
+
+            if response.status_code == 200:
+                found_release_list.append(release)
+
+        return found_release_list
+
+    def sgw_latest(self, op: SoftwareBundle):
+        return sorted(self.get_sgw_versions(op))[-1]

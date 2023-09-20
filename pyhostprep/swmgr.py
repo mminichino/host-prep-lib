@@ -9,6 +9,7 @@ from overrides import override
 from pyhostprep.cli import CLI
 from pyhostprep.server import CouchbaseServer, IndexMemoryOption
 from pyhostprep.server import ServerConfig
+from pyhostprep.gateway import GatewayConfig, SyncGateway
 
 warnings.filterwarnings("ignore")
 logger = logging.getLogger()
@@ -30,12 +31,16 @@ class SWMgrCLI(CLI):
         opt_parser.add_argument('-i', '--index_mem', dest='index_mem', action='store', default='default')
         opt_parser.add_argument('-g', '--group', dest='group', action='store', default='primary')
         opt_parser.add_argument('-D', '--data_path', dest='data_path', action='store', default='/opt/couchbase/var/lib/couchbase/data')
+        opt_parser.add_argument('-S', '--sgw_path', dest='sgw_path', action='store', default='/home/sync_gateway')
 
         command_subparser = self.parser.add_subparsers(dest='command')
         cluster_parser = command_subparser.add_parser('cluster', parents=[opt_parser], add_help=False)
         action_subparser = cluster_parser.add_subparsers(dest='cluster_command')
         action_subparser.add_parser('create', parents=[opt_parser], add_help=False)
         action_subparser.add_parser('rebalance', parents=[opt_parser], add_help=False)
+        gateway_parser = command_subparser.add_parser('gateway', parents=[opt_parser], add_help=False)
+        gateway_subparser = gateway_parser.add_subparsers(dest='gateway_command')
+        gateway_subparser.add_parser('configure', parents=[opt_parser], add_help=False)
 
     def cluster_operations(self):
         sc = ServerConfig(self.options.name,
@@ -54,9 +59,21 @@ class SWMgrCLI(CLI):
             logger.info(f"Balancing cluster {self.options.name}")
             cbs.rebalance()
 
+    def gateway_operations(self):
+        gc = GatewayConfig(self.options.ip_list.split(','),
+                           self.options.username,
+                           self.options.password,
+                           self.options.sgw_path)
+        sgw = SyncGateway(gc)
+        if self.options.gateway_command == "configure":
+            logger.info(f"Configuring Sync Gateway node")
+            sgw.get_version()
+
     def run(self):
         if self.options.command == "cluster":
             self.cluster_operations()
+        elif self.options.command == "gateway":
+            self.gateway_operations()
 
 
 def main(args=None):

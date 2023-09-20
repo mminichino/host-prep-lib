@@ -245,6 +245,40 @@
         "run": "install_cbs_sles.yaml",
         "post": "configure_cbdata.yaml"
       }
+    },
+    "SGW": {
+      "centos|rhel|amzn|rocky|ol|fedora": {
+        "requires": [
+          "Base",
+          "Chrony",
+          "Firewall",
+          "THP",
+          "Swappiness",
+          "Swap"
+        ],
+        "extra_vars": [
+          "sgw_download_rpm"
+        ],
+        "pre": null,
+        "run": "install_sgw_rpm.yaml",
+        "post": null
+      },
+      "ubuntu|debian": {
+        "requires": [
+          "Base",
+          "Chrony",
+          "Firewall",
+          "THP",
+          "Swappiness",
+          "Swap"
+        ],
+        "extra_vars": [
+          "sgw_download_deb"
+        ],
+        "pre": null,
+        "run": "install_sgw_deb.yaml",
+        "post": null
+      }
     }
   }
 }

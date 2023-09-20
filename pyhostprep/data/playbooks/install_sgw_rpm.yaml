@@ -1,0 +1,10 @@
+---
+- hosts: localhost
+  gather_facts: no
+  name: Install Sync Gateway
+  tasks:
+    - name: Install Sync Gateway
+      ansible.builtin.yum:
+        name: "{{ sgw_download_rpm }}"
+        state: present
+        disable_gpg_check: true
