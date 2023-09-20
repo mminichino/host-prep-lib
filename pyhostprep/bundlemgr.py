@@ -71,12 +71,12 @@ class BundleMgrCLI(CLI):
                     elif extra_var == "sgw_download_rpm":
                         sw = SoftwareManager()
                         version = self.options.sgw if self.options.sgw else sw.sgw_latest(self.op)
-                        url = sw.get_sgw_rpm(version, self.op.os.architecture)
+                        url = sw.get_sgw_rpm(version, self.op.os.machine)
                         extra_vars.update({'sgw_download_rpm': url})
                     elif extra_var == "sgw_download_deb":
                         sw = SoftwareManager()
                         version = self.options.sgw if self.options.sgw else sw.sgw_latest(self.op)
-                        url = sw.get_sgw_apt(version, self.op.os.architecture)
+                        url = sw.get_sgw_apt(version, self.op.os.machine)
                         extra_vars.update({'sgw_download_deb': url})
                 logger.info(f"Running playbook {playbook}")
                 stdout_save = sys.stdout
