@@ -61,3 +61,7 @@ class OSRelease(object):
             return OSRelease.debian_arch_map.get(self.arch, self.arch)
         else:
             return self.arch
+
+    @property
+    def machine(self):
+        return self.arch

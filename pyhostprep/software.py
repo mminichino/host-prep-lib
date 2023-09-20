@@ -124,7 +124,7 @@ class SoftwareManager(object):
         sgw_git_release_url = 'https://api.github.com/repos/couchbase/sync_gateway/releases'
         git_release_list = []
         found_release_list = []
-        arch = op.os.architecture
+        arch = op.os.machine
 
         session = requests.Session()
         retries = Retry(total=60,
