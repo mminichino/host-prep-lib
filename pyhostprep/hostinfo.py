@@ -72,7 +72,7 @@ class HostInfo(object):
         if not shutil.which("systemctl"):
             return
 
-        check_command = ["ps" "--no-headers" "-o" "comm" "1"]
+        check_command = ["ps", "--no-headers", "-o", "comm", "1"]
 
         try:
             output: BytesIO = RunShellCommand().cmd_exec(check_command, "/var/tmp")
