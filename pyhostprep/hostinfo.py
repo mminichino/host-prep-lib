@@ -5,6 +5,7 @@ from pyhostprep.command import RunShellCommand, ShellCommandError
 from io import BytesIO
 from typing import Optional, List
 import attr
+import shutil
 
 
 @attr.s
@@ -68,6 +69,9 @@ class HostInfo(object):
 
     def get_service_status(self):
         command = ["systemctl", "list-units", "--type=service", "--no-pager", "--no-legend"]
+
+        if not shutil.which("systemctl"):
+            return
 
         try:
             output: BytesIO = RunShellCommand().cmd_exec(command, "/var/tmp")
