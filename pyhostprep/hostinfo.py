@@ -68,10 +68,17 @@ class HostInfo(object):
         return self._system
 
     def get_service_status(self):
-        command = ["systemctl", "list-units", "--type=service", "--no-pager", "--no-legend"]
-
         if not shutil.which("systemctl"):
             return
+
+        check_command = ["systemd-notify", "--booted"]
+
+        try:
+            RunShellCommand().cmd_exec(check_command, "/var/tmp")
+        except ShellCommandError:
+            return
+
+        command = ["systemctl", "list-units", "--type=service", "--no-pager", "--no-legend"]
 
         try:
             output: BytesIO = RunShellCommand().cmd_exec(command, "/var/tmp")
