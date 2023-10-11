@@ -35,7 +35,7 @@ setup(
         "overrides>=7.4.0",
         "bumpversion>=0.6.0",
         "psutil>=5.9.5",
-        "cbcmgr>=1.5.1",
+        "cbcmgr>=2.1.5",
         "Jinja2>=3.0.3"
     ],
     author_email='info@unix.us.com',
