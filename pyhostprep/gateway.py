@@ -6,11 +6,13 @@ import re
 import logging
 import os
 import jinja2
+import time
 from typing import Optional, List
 from pyhostprep.command import RunShellCommand, RCNotZero
 from pyhostprep.exception import FatalError
 from pyhostprep import get_config_file
 from pyhostprep.util import FileManager
+from pyhostprep.rest import APISession
 
 logger = logging.getLogger('hostprep.gateway')
 logger.addHandler(logging.NullHandler())
@@ -114,3 +116,21 @@ class SyncGateway(object):
             out_file.close()
 
         FileManager().set_perms(dest)
+
+    @staticmethod
+    def gateway_wait(retry_count=300, factor=0.1):
+        s = APISession("127.0.0.1", port=4984)
+        for retry_number in range(retry_count + 1):
+            try:
+                result = s.api_get("/").json()
+                if result.get('couchdb'):
+                    return result
+            except Exception as err:
+                logger.debug(f"gateway_wait: waiting due to {err}")
+
+            if retry_number == retry_count:
+                return False
+            logger.info(f"Waiting for gateway to initialize")
+            wait = factor
+            wait *= (2 ** (retry_number + 1))
+            time.sleep(wait)

@@ -39,9 +39,11 @@ class SWMgrCLI(CLI):
         action_subparser = cluster_parser.add_subparsers(dest='cluster_command')
         action_subparser.add_parser('create', parents=[opt_parser], add_help=False)
         action_subparser.add_parser('rebalance', parents=[opt_parser], add_help=False)
+        action_subparser.add_parser('wait', parents=[opt_parser], add_help=False)
         gateway_parser = command_subparser.add_parser('gateway', parents=[opt_parser], add_help=False)
         gateway_subparser = gateway_parser.add_subparsers(dest='gateway_command')
         gateway_subparser.add_parser('configure', parents=[opt_parser], add_help=False)
+        gateway_subparser.add_parser('wait', parents=[opt_parser], add_help=False)
 
     def cluster_operations(self):
         sc = ServerConfig(self.options.name,
@@ -59,6 +61,9 @@ class SWMgrCLI(CLI):
         elif self.options.cluster_command == "rebalance":
             logger.info(f"Balancing cluster {self.options.name}")
             cbs.rebalance()
+        elif self.options.cluster_command == "wait":
+            logger.info(f"Waiting for cluster availability {self.options.name}")
+            cbs.cluster_wait()
 
     def gateway_operations(self):
         gc = GatewayConfig(self.options.ip_list.split(','),
@@ -70,6 +75,9 @@ class SWMgrCLI(CLI):
         if self.options.gateway_command == "configure":
             logger.info(f"Configuring Sync Gateway node")
             sgw.configure()
+        elif self.options.gateway_command == "wait":
+            logger.info(f"Waiting for Sync Gateway node")
+            sgw.gateway_wait()
 
     def run(self):
         if self.options.command == "cluster":
