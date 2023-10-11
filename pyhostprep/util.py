@@ -27,10 +27,13 @@ class FileManager(object):
             except OSError:
                 raise
 
-    def set_perms(self, name: str, owner: str, group: str, mode: int = 0o775):
+    def set_perms(self, name: str, owner: str = None, group: str = None, mode: int = 0o775):
+        owner_id = getpwnam(owner).pw_uid if owner else None
+        group_id = getgrnam(group).gr_gid if group else None
         if os.path.exists(name):
-            uid = getpwnam(owner).pw_uid
-            gid = getgrnam(group).gr_gid
+            path_dir = os.path.dirname(name)
+            uid = os.stat(path_dir).st_uid if not owner_id else owner_id
+            gid = os.stat(path_dir).st_gid if not group_id else group_id
             os.chown(name, uid, gid)
             os.chmod(name, mode)
         else:

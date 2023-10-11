@@ -10,6 +10,7 @@ from typing import Optional, List
 from pyhostprep.command import RunShellCommand, RCNotZero
 from pyhostprep.exception import FatalError
 from pyhostprep import get_config_file
+from pyhostprep.util import FileManager
 
 logger = logging.getLogger('hostprep.gateway')
 logger.addHandler(logging.NullHandler())
@@ -26,6 +27,7 @@ class GatewayConfig:
     password: Optional[str] = attr.ib(default="password")
     bucket: Optional[str] = attr.ib(default="default")
     root_path: Optional[str] = attr.ib(default="/home/sync_gateway")
+    os_username: Optional[str] = attr.ib(default="sync_gateway")
 
     @property
     def get_values(self):
@@ -41,13 +43,15 @@ class GatewayConfig:
                username: str = "Administrator",
                password: str = "password",
                bucket: str = "default",
-               root_path: str = "/home/sync_gateway"):
+               root_path: str = "/home/sync_gateway",
+               os_username: str = "sync_gateway"):
         return cls(
             ip_list,
             username,
             password,
             bucket,
-            root_path
+            root_path,
+            os_username
         )
 
 
@@ -59,11 +63,14 @@ class SyncGateway(object):
         self.password = config.password
         self.bucket = config.bucket
         self.root_path = config.root_path
+        self.os_username = config.os_username
+        self.log_dir = os.path.join(self.root_path, "logs")
 
         self.connect_ip = self.ip_list[0]
 
     def configure(self):
         sw_version = self.get_version()
+        FileManager().make_dir(self.log_dir)
 
         if sw_version and sw_version == "3":
             self.copy_config_file("sync_gateway_3.json")
@@ -85,7 +92,7 @@ class SyncGateway(object):
             else:
                 return None
         except RCNotZero as err:
-            raise GatewaySetupError(f"ca not get software version: {err}")
+            raise GatewaySetupError(f"can not get software version: {err}")
 
     def copy_config_file(self, source: str):
         dest = os.path.join(self.root_path, 'sync_gateway.json')
@@ -105,3 +112,5 @@ class SyncGateway(object):
         with open(dest, 'w') as out_file:
             out_file.write(formatted_value)
             out_file.close()
+
+        FileManager().set_perms(dest)
