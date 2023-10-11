@@ -1,5 +1,6 @@
 ##
 ##
+import os.path
 
 from pyhostprep.command import RunShellCommand, ShellCommandError
 from io import BytesIO
@@ -71,12 +72,16 @@ class HostInfo(object):
         if not shutil.which("systemctl"):
             return
 
-        check_command = ["systemd-notify", "--booted"]
+        check_command = ["ps" "--no-headers" "-o" "comm" "1"]
 
         try:
-            RunShellCommand().cmd_exec(check_command, "/var/tmp")
+            output: BytesIO = RunShellCommand().cmd_exec(check_command, "/var/tmp")
+            result = output.readline().decode("utf-8").strip()
+            entrypoint = os.path.basename(result)
+            if entrypoint != 'init' and entrypoint != 'systemd':
+                return
         except ShellCommandError:
-            return
+            raise
 
         command = ["systemctl", "list-units", "--type=service", "--no-pager", "--no-legend"]
 
