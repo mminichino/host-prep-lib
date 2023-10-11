@@ -13,5 +13,5 @@
         name: sync_gateway
       when: not dockerenv.stat.exists
     - name: Sync Gateway
-      shell: "(/opt/couchbase-sync-gateway/bin/sync_gateway /home/sync_gateway/sync-gateway-config.json >/dev/null 2>&1 &)"
+      shell: "(/opt/couchbase-sync-gateway/bin/sync_gateway /home/sync_gateway/sync_gateway.json >/dev/null 2>&1 &)"
       when: dockerenv.stat.exists
