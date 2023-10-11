@@ -3,8 +3,15 @@
   gather_facts: no
   name: Enable Sync Gateway
   tasks:
+    - name: Check For Container
+      stat: path=/.dockerenv
+      register: dockerenv
     - name: Sync Gateway
       ansible.builtin.systemd:
         state: restarted
         enabled: true
         name: sync_gateway
+      when: not dockerenv.stat.exists
+    - name: Sync Gateway
+      shell: "(/opt/couchbase-sync-gateway/bin/sync_gateway /home/sync_gateway/sync-gateway-config.json >/dev/null 2>&1 &)"
+      when: dockerenv.stat.exists
