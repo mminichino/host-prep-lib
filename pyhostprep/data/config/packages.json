@@ -289,6 +289,14 @@
         "run": "enable_sgw.yaml",
         "post": null
       }
+    },
+    "StartSGW": {
+      "centos|rhel|amzn|rocky|ol|fedora|ubuntu|debian": {
+        "requires": [],
+        "pre": null,
+        "run": "enable_sgw.yaml",
+        "post": null
+      }
     }
   }
 }
