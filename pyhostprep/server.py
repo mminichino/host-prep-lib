@@ -12,6 +12,7 @@ from typing import Optional, List, Sequence
 from pyhostprep.network import NetworkInfo
 from pyhostprep.command import RunShellCommand, RCNotZero
 from pyhostprep.exception import FatalError
+from pyhostprep.retry import retry
 
 logger = logging.getLogger('hostprep.server')
 logger.addHandler(logging.NullHandler())
@@ -339,6 +340,7 @@ class CouchbaseServer(object):
 
         return None
 
+    @retry()
     def node_change_group(self):
         current_group = self.get_node_group()
         if current_group == self.availability_zone:
