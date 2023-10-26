@@ -415,18 +415,18 @@ class CouchbaseServer(object):
         logger.info(f"FTS quota      : {self.fts_quota}")
         logger.info(f"Eventing quota : {self.eventing_quota}")
 
-        if self.internal_ip == self.rally_ip_address:
-            if not self.is_cluster():
-                logger.info(f"Creating rally node {self.rally_ip_address}")
-                self.cluster_init()
-                print("Success: Cluster Init")
+        if self.internal_ip == self.rally_ip_address and not self.is_cluster():
+            logger.info(f"Creating rally node {self.rally_ip_address}")
+            self.cluster_init()
+            print("Success: Cluster Initialized")
+        elif not self.is_node():
+            if not self.cluster_wait():
+                raise ClusterSetupError(f"can not add node {self.internal_ip} rally node is unreachable")
+            logger.info(f"Creating cluster node {self.internal_ip}")
+            self.node_add()
+            print("Success: Node Added")
         else:
-            if not self.is_node():
-                if not self.cluster_wait():
-                    raise ClusterSetupError(f"can not add node {self.internal_ip} rally node is unreachable")
-                logger.info(f"Creating cluster node {self.internal_ip}")
-                self.node_add()
-                print("Success: Node Addition")
+            print("Node is already configured")
 
     @staticmethod
     def wait_port(address: str, port: int = 8091, retry_count=300, factor=0.1):

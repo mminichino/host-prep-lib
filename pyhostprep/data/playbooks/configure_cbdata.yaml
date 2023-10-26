@@ -8,7 +8,8 @@
       register: dockerenv
     - meta: end_play
       when: dockerenv.stat.exists
-    - command: mountpoint -q /cbdata
+    - name: Check For Mountpoint
+      command: mountpoint -q /cbdata
       register: volume_check
       failed_when: False
       changed_when: False
