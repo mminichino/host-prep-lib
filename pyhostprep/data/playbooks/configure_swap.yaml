@@ -8,6 +8,12 @@
       register: dockerenv
     - meta: end_play
       when: dockerenv.stat.exists
+    - name: Check for swap
+      ansible.builtin.shell:
+        cmd: swapon -s
+      register: swap_check_output
+    - meta: end_play
+      when: swap_check_output.stdout != ""
     - name: Get Swap Device
       ansible.builtin.shell:
         cmd: storagemgr -D -n 2

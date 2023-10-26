@@ -8,6 +8,12 @@
       register: dockerenv
     - meta: end_play
       when: dockerenv.stat.exists
+    - command: mountpoint -q /cbdata
+      register: volume_check
+      failed_when: False
+      changed_when: False
+    - meta: end_play
+      when: volume_check.rc == 0
     - name: Get Data Device
       ansible.builtin.shell:
         cmd: storagemgr -D -n 3
