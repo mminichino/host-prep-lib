@@ -12,7 +12,6 @@ from typing import Optional, List, Sequence
 from pyhostprep.network import NetworkInfo
 from pyhostprep.command import RunShellCommand, RCNotZero
 from pyhostprep.exception import FatalError
-from pyhostprep.retry import retry
 
 logger = logging.getLogger('hostprep.server')
 logger.addHandler(logging.NullHandler())
@@ -340,8 +339,7 @@ class CouchbaseServer(object):
 
         return None
 
-    @retry()
-    def node_change_group(self):
+    def node_change_group(self, retry_count=10, factor=0.1):
         current_group = self.get_node_group()
         if current_group == self.availability_zone:
             return True
@@ -359,12 +357,17 @@ class CouchbaseServer(object):
             "--to-group", self.availability_zone
         ]
 
-        try:
-            RunShellCommand().cmd_output(cmd, "/var/tmp")
-        except RCNotZero as err:
-            raise ClusterSetupError(f"Can not change node group: {err}")
-
-        return True
+        for retry_number in range(retry_count + 1):
+            try:
+                RunShellCommand().cmd_output(cmd, "/var/tmp")
+                return True
+            except RCNotZero as err:
+                if retry_number == retry_count:
+                    raise ClusterSetupError(f"Can not change node group: {err}")
+                logger.debug(f"retrying node change group")
+                wait = factor
+                wait *= (2 ** (retry_number + 1))
+                time.sleep(wait)
 
     def rebalance(self):
         if self.internal_ip != self.rally_ip_address:
