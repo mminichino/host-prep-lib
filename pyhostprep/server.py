@@ -339,7 +339,7 @@ class CouchbaseServer(object):
 
         return None
 
-    def node_change_group(self, retry_count=10, factor=0.1):
+    def node_change_group(self, retry_count=10, factor=0.5):
         current_group = self.get_node_group()
         if current_group == self.availability_zone:
             return True
@@ -366,7 +366,7 @@ class CouchbaseServer(object):
                     raise ClusterSetupError(f"Can not change node group: {err}")
                 logger.debug(f"retrying node change group")
                 wait = factor
-                wait *= (2 ** (retry_number + 1))
+                wait *= (retry_number + 1)
                 time.sleep(wait)
 
     def rebalance(self):
@@ -392,7 +392,7 @@ class CouchbaseServer(object):
         print("Success: Rebalance")
         return True
 
-    def cluster_wait(self, retry_count=300, factor=0.1, min_nodes=1):
+    def cluster_wait(self, retry_count=45, factor=0.5, min_nodes=1):
         for retry_number in range(retry_count + 1):
             cmd = [
                 "/opt/couchbase/bin/couchbase-cli", "server-list",
@@ -408,7 +408,7 @@ class CouchbaseServer(object):
                     return False
                 logger.info(f"Waiting for cluster to initialize")
                 wait = factor
-                wait *= (2 ** (retry_number + 1))
+                wait *= (retry_number + 1)
                 time.sleep(wait)
 
     def bootstrap(self):
@@ -434,7 +434,7 @@ class CouchbaseServer(object):
             print("Node is already configured")
 
     @staticmethod
-    def wait_port(address: str, port: int = 8091, retry_count=300, factor=0.1):
+    def wait_port(address: str, port: int = 8091, retry_count=45, factor=0.5):
         for retry_number in range(retry_count + 1):
             socket.setdefaulttimeout(1)
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -447,5 +447,5 @@ class CouchbaseServer(object):
                     return False
                 logger.info(f"Waiting for {address}:{port} to become reachable")
                 wait = factor
-                wait *= (2 ** (retry_number + 1))
+                wait *= (retry_number + 1)
                 time.sleep(wait)
