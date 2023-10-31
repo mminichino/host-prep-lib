@@ -392,7 +392,7 @@ class CouchbaseServer(object):
         print("Success: Rebalance")
         return True
 
-    def cluster_wait(self, retry_count=45, factor=0.5, min_nodes=1):
+    def cluster_wait(self, retry_count=30, factor=0.5, min_nodes=1):
         for retry_number in range(retry_count + 1):
             cmd = [
                 "/opt/couchbase/bin/couchbase-cli", "server-list",
@@ -434,7 +434,7 @@ class CouchbaseServer(object):
             print("Node is already configured")
 
     @staticmethod
-    def wait_port(address: str, port: int = 8091, retry_count=45, factor=0.5):
+    def wait_port(address: str, port: int = 8091, retry_count=30, factor=0.5):
         for retry_number in range(retry_count + 1):
             socket.setdefaulttimeout(1)
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
