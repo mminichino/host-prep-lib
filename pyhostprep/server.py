@@ -375,9 +375,7 @@ class CouchbaseServer(object):
             return True
 
         if not self.cluster_wait(min_nodes=len(self.ip_list)):
-            message = "rebalance: not all nodes joined the cluster"
-            logger.error(message)
-            raise ClusterSetupError(message)
+            raise ClusterSetupError("rebalance: not all nodes joined the cluster")
 
         cmd = [
             "/opt/couchbase/bin/couchbase-cli", "rebalance",
