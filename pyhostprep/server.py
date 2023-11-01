@@ -369,12 +369,15 @@ class CouchbaseServer(object):
                 wait *= (retry_number + 1)
                 time.sleep(wait)
 
-    def rebalance(self):
+    def rebalance(self, retry_count=10, factor=0.5):
         if self.internal_ip != self.rally_ip_address:
+            logger.info("rebalance: skipping node")
             return True
 
         if not self.cluster_wait(min_nodes=len(self.ip_list)):
-            raise ClusterSetupError(f"rebalance: not all nodes joined the cluster")
+            message = "rebalance: not all nodes joined the cluster"
+            logger.error(message)
+            raise ClusterSetupError(message)
 
         cmd = [
             "/opt/couchbase/bin/couchbase-cli", "rebalance",
@@ -384,13 +387,18 @@ class CouchbaseServer(object):
             "--no-progress-bar"
         ]
 
-        try:
-            RunShellCommand().cmd_output(cmd, "/var/tmp")
-        except RCNotZero as err:
-            raise ClusterSetupError(f"Can not rebalance cluster: {err}")
-
-        print("Success: Rebalance")
-        return True
+        for retry_number in range(retry_count + 1):
+            try:
+                RunShellCommand().cmd_output(cmd, "/var/tmp")
+                print("Success: Rebalance")
+                return True
+            except RCNotZero as err:
+                if retry_number == retry_count:
+                    raise ClusterSetupError(f"Can not rebalance cluster: {err}")
+                logger.debug(f"retrying cluster rebalance")
+                wait = factor
+                wait *= (retry_number + 1)
+                time.sleep(wait)
 
     def cluster_wait(self, retry_count=30, factor=0.5, min_nodes=1):
         for retry_number in range(retry_count + 1):
