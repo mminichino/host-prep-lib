@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 import pyhostprep
 
 from pathlib import Path
@@ -8,7 +8,7 @@ long_description = (this_directory / "README.md").read_text()
 setup(
     name='pyhostprep',
     version=pyhostprep.__version__,
-    packages=['pyhostprep'],
+    packages=find_packages(),
     url='https://github.com/mminichino/host-prep-lib',
     license='Apache License 2.0',
     author='Michael Minichino',

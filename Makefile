@@ -1,9 +1,17 @@
 .PHONY:	version setup push pypi test
 export PYTHONPATH := $(shell pwd)/test:$(shell pwd):$(PYTHONPATH)
 
-version:
-		bumpversion patch
+commit:
+		git commit -am "Version $(shell cat VERSION)"
 		git push
+build:
+		bumpversion --allow-dirty build
+patch:
+		bumpversion --allow-dirty patch
+minor:
+		bumpversion --allow-dirty minor
+major:
+		bumpversion --allow-dirty major
 setup:
 		python setup.py sdist
 push:
