@@ -72,9 +72,14 @@ class SyncGateway(object):
 
     def configure(self):
         sw_version = self.get_version()
-        FileManager().make_dir(self.log_dir)
+        if sw_version:
+            self.prepare(int(sw_version))
+        else:
+            self.prepare(3)
 
-        if sw_version and sw_version == "3":
+    def prepare(self, version=3):
+        FileManager().make_dir(self.log_dir)
+        if version == 3:
             self.copy_config_file("sync_gateway_3.json")
         else:
             self.copy_config_file("sync_gateway_2.json")
