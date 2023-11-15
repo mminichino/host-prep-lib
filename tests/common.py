@@ -167,7 +167,7 @@ def container_log(container_id: Container, directory: str):
         out_file.close()
 
 
-def run_in_container(container_id: Container, directory: str, command: Union[str, list[str]]):
+def run_in_container(container_id: Container, directory: str, command: Union[str, List[str]]):
     print(f"Running: {command if type(command) == str else ' '.join(command)}")
     exit_code, output = container_id.exec_run(command, workdir=directory)
     for line in output.split(b'\n'):

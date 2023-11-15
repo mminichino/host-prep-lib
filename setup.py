@@ -8,7 +8,7 @@ long_description = (this_directory / "README.md").read_text()
 setup(
     name='pyhostprep',
     version=pyhostprep.__version__,
-    packages=find_packages(),
+    packages=find_packages(exclude=['tests']),
     url='https://github.com/mminichino/host-prep-lib',
     license='Apache License 2.0',
     author='Michael Minichino',
