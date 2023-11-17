@@ -7,7 +7,7 @@ import logging
 import os
 import jinja2
 import time
-from typing import Optional, List
+from typing import Optional, List, Union
 from pyhostprep.command import RunShellCommand, RCNotZero
 from pyhostprep.exception import FatalError
 from pyhostprep import get_config_file
@@ -77,12 +77,12 @@ class SyncGateway(object):
         else:
             self.prepare(3)
 
-    def prepare(self, version=3):
+    def prepare(self, version=3, dest=None):
         FileManager().make_dir(self.log_dir)
         if version == 3:
-            self.copy_config_file("sync_gateway_3.json")
+            self.copy_config_file("sync_gateway_3.json", dest)
         else:
-            self.copy_config_file("sync_gateway_2.json")
+            self.copy_config_file("sync_gateway_2.json", dest)
 
     def get_version(self):
         cmd = [
@@ -101,8 +101,9 @@ class SyncGateway(object):
         except RCNotZero as err:
             raise GatewaySetupError(f"can not get software version: {err}")
 
-    def copy_config_file(self, source: str):
-        dest = os.path.join(self.root_path, 'sync_gateway.json')
+    def copy_config_file(self, source: str, dest: Union[str, None] = None):
+        if not dest:
+            dest = os.path.join(self.root_path, 'sync_gateway.json')
         src = get_config_file(source)
         with open(src, 'r') as in_file:
             input_data = in_file.read()

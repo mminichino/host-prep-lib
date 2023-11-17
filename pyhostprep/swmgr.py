@@ -33,6 +33,7 @@ class SWMgrCLI(CLI):
         opt_parser.add_argument('-g', '--group', dest='group', action='store', default='primary')
         opt_parser.add_argument('-D', '--data_path', dest='data_path', action='store', default='/opt/couchbase/var/lib/couchbase/data')
         opt_parser.add_argument('-S', '--sgw_path', dest='sgw_path', action='store', default='/home/sync_gateway')
+        opt_parser.add_argument('-f', '--filename', dest='filename', action='store')
 
         command_subparser = self.parser.add_subparsers(dest='command')
         cluster_parser = command_subparser.add_parser('cluster', parents=[opt_parser], add_help=False)
@@ -73,8 +74,11 @@ class SWMgrCLI(CLI):
                            self.options.sgw_path)
         sgw = SyncGateway(gc)
         if self.options.gateway_command == "configure":
-            logger.info(f"Configuring Sync Gateway node")
-            sgw.configure()
+            if not self.options.filename:
+                logger.info(f"Configuring Sync Gateway node")
+                sgw.configure()
+            else:
+                sgw.prepare(dest=self.options.filename)
         elif self.options.gateway_command == "wait":
             logger.info(f"Waiting for Sync Gateway node")
             sgw.gateway_wait()
