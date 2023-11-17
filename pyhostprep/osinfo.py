@@ -3,6 +3,7 @@
 
 import csv
 import os
+import plistlib
 
 
 class OSRelease(object):
@@ -13,6 +14,7 @@ class OSRelease(object):
 
     def __init__(self, filename: str = "/etc/os-release"):
         self.os_release = filename
+        self.macos_release = "/System/Library/CoreServices/SystemVersion.plist"
         self.os_info = {}
         self.os_name = None
         self.os_like = None
@@ -32,12 +34,20 @@ class OSRelease(object):
             pass
 
     def as_dict(self):
-        with open(self.os_release) as data:
-            reader = csv.reader(data, delimiter="=")
-            for rows in reader:
-                if len(rows) < 2:
-                    continue
-                self.os_info.update({rows[0]: rows[1]})
+        if os.path.exists(self.os_release):
+            with open(self.os_release) as data:
+                reader = csv.reader(data, delimiter="=")
+                for rows in reader:
+                    if len(rows) < 2:
+                        continue
+                    self.os_info.update({rows[0]: rows[1]})
+        elif os.path.exists(self.macos_release):
+            with open(self.macos_release, 'rb') as f:
+                sys_info = plistlib.load(f)
+            self.os_info['NAME'] = os.uname().sysname
+            self.os_info['VERSION'] = os.uname().version
+            self.os_info['ID'] = sys_info.get('ProductName')
+            self.os_info['VERSION_ID'] = sys_info.get('ProductVersion')
 
     @property
     def os_id(self):
