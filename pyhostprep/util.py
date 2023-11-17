@@ -32,9 +32,10 @@ class FileManager(object):
         group_id = getgrnam(group).gr_gid if group else None
         if os.path.exists(name):
             path_dir = os.path.dirname(name)
-            uid = os.stat(path_dir).st_uid if not owner_id else owner_id
-            gid = os.stat(path_dir).st_gid if not group_id else group_id
-            os.chown(name, uid, gid)
+            if path_dir:
+                uid = os.stat(path_dir).st_uid if not owner_id else owner_id
+                gid = os.stat(path_dir).st_gid if not group_id else group_id
+                os.chown(name, uid, gid)
             os.chmod(name, mode)
         else:
             self.make_dir(name, owner, group, mode)
