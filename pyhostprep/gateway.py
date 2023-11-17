@@ -78,7 +78,8 @@ class SyncGateway(object):
             self.prepare(3)
 
     def prepare(self, version=3, dest=None):
-        FileManager().make_dir(self.log_dir)
+        if not dest:
+            FileManager().make_dir(self.log_dir)
         if version == 3:
             self.copy_config_file("sync_gateway_3.json", dest)
         else:
