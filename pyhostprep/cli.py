@@ -15,6 +15,7 @@ from datetime import datetime
 from pyhostprep.bundles import SoftwareBundle
 from pyhostprep.hostinfo import HostInfo
 from pyhostprep.software import SoftwareManager
+from pyhostprep.util import FileManager
 from pyhostprep import constants as C
 from pyhostprep import get_config_file, get_data_dir
 
@@ -92,7 +93,15 @@ class CLI(object):
 
     def __init__(self, args):
         signal.signal(signal.SIGINT, break_signal_handler)
-        default_debug_file = f"/var/log/{os.path.splitext(os.path.basename(sys.argv[0]))[0]}.log"
+        log_file_name = f"{os.path.splitext(os.path.basename(sys.argv[0]))[0]}.log"
+        if os.access('/var/log', os.W_OK):
+            default_debug_file = f"/var/log/{log_file_name}"
+        elif 'HOME' in os.environ:
+            log_dir = os.path.join(os.environ['HOME'], '.log')
+            FileManager().make_dir(log_dir)
+            default_debug_file = f"{log_dir}/{log_file_name}"
+        else:
+            default_debug_file = f"/tmp/{log_file_name}"
         debug_file = os.environ.get("DEBUG_FILE", default_debug_file)
         self.args = args
         self.parser = None
