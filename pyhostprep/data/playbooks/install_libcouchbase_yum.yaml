@@ -1,0 +1,19 @@
+---
+- hosts: localhost
+  gather_facts: no
+  name: Install Libcouchbase
+  tasks:
+    - name: Add Repository
+      ansible.builtin.yum_repository:
+        enabled: yes
+        name: libcouchbase package
+        baseurl: "{{ libcouchbase_repo }}"
+        gpgcheck: yes
+        gpgkey: https://packages.couchbase.com/clients/c/repos/rpm/couchbase.key
+    - name: Install Packages
+      ansible.builtin.package:
+        name:
+          - libcouchbase3
+          - libcouchbase-devel
+          - libcouchbase3-tools
+        state: latest

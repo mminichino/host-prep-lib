@@ -78,6 +78,10 @@ class BundleMgrCLI(CLI):
                         version = self.options.sgw if self.options.sgw else sw.sgw_latest(self.op)
                         url = sw.get_sgw_apt(version, self.op.os.machine)
                         extra_vars.update({'sgw_download_deb': url})
+                    elif extra_var == "libcouchbase_repo":
+                        sw = SoftwareManager()
+                        repo = sw.get_libcouchbase_repo(os_name, os_major)
+                        extra_vars.update({'libcouchbase_repo': repo})
                 logger.info(f"Running playbook {playbook}")
                 stdout_save = sys.stdout
                 sys.stdout = StreamOutputLogger(logger, logging.INFO)

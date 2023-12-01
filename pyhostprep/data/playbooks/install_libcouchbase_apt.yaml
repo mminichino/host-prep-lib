@@ -1,0 +1,24 @@
+---
+- hosts: localhost
+  gather_facts: no
+  name: Install Libcouchbase
+  tasks:
+    - name: Install Key
+      ansible.builtin.apt_key:
+        url: https://packages.couchbase.com/clients/c/repos/deb/couchbase.key
+        state: present
+    - name: Add Repository
+      ansible.builtin.apt_repository:
+        repo: "{{ libcouchbase_repo }}"
+        state: present
+        filename: couchbase.list
+    - name: Install Packages
+      ansible.builtin.package:
+        name:
+          - libcouchbase3
+          - libcouchbase-dev
+          - libcouchbase3-tools
+          - libcouchbase-dbg
+          - libcouchbase3-libev
+          - libcouchbase3-libevent
+        state: latest

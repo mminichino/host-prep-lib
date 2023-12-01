@@ -297,6 +297,30 @@
         "run": "enable_sgw.yaml",
         "post": null
       }
+    },
+    "LibCouchbase": {
+      "centos|rhel|amzn": {
+        "requires": [
+          "Base"
+        ],
+        "extra_vars": [
+          "libcouchbase_repo"
+        ],
+        "pre": null,
+        "run": "install_libcouchbase_yum.yaml",
+        "post": null
+      },
+      "ubuntu|debian": {
+        "requires": [
+          "Base"
+        ],
+        "extra_vars": [
+          "libcouchbase_repo"
+        ],
+        "pre": null,
+        "run": "install_libcouchbase_apt.yaml",
+        "post": null
+      }
     }
   }
 }

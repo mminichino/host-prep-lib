@@ -45,6 +45,29 @@ class SoftwareManager(object):
         'debian': ['10', '11'],
     }
 
+    libcouchbase_repo_list = {
+        'ubuntu': {
+            '16': 'deb https://packages.couchbase.com/clients/c/repos/deb/ubuntu1604 xenial xenial/main',
+            '18': 'deb https://packages.couchbase.com/clients/c/repos/deb/ubuntu1804 bionic bionic/main',
+            '20': 'deb https://packages.couchbase.com/clients/c/repos/deb/ubuntu2004 focal focal/main',
+            '22': 'deb https://packages.couchbase.com/clients/c/repos/deb/ubuntu2204 jammy jammy/main'
+        },
+        'debian': {
+            '9': 'deb https://packages.couchbase.com/clients/c/repos/deb/debian9 stretch stretch/main',
+            '10': 'deb https://packages.couchbase.com/clients/c/repos/deb/debian10 buster buster/main',
+            '11': 'deb https://packages.couchbase.com/clients/c/repos/deb/debian11 bullseye bullseye/main'
+        },
+        'rhel': {
+            '7': 'https://packages.couchbase.com/clients/c/repos/rpm/el7/x86_64',
+            '8': 'https://packages.couchbase.com/clients/c/repos/rpm/el8/x86_64',
+            '9': 'https://packages.couchbase.com/clients/c/repos/rpm/el9/x86_64'
+        },
+        'amzn': {
+            '2': 'https://packages.couchbase.com/clients/c/repos/rpm/amzn2/x86_64',
+            '2023': 'https://packages.couchbase.com/clients/c/repos/rpm/amzn2023/x86_64'
+        }
+    }
+
     def __init__(self):
         warnings.filterwarnings("ignore")
 
@@ -162,3 +185,6 @@ class SoftwareManager(object):
 
     def sgw_latest(self, op: SoftwareBundle):
         return sorted(self.get_sgw_versions(op))[-1]
+
+    def get_libcouchbase_repo(self, os_name, os_major):
+        return self.libcouchbase_repo_list.get(os_name, {}).get(os_major)
