@@ -21,4 +21,5 @@
           - net-tools
           - chrony
           - procps
+          - zip
         state: latest

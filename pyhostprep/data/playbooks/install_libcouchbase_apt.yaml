@@ -21,5 +21,4 @@
           - libcouchbase-dbg
           - libcouchbase3-libev
           - libcouchbase3-libevent
-          - zip
         state: latest

@@ -16,5 +16,4 @@
           - libcouchbase3
           - libcouchbase-devel
           - libcouchbase3-tools
-          - zip
         state: latest

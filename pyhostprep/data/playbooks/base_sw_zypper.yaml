@@ -15,4 +15,5 @@
           - ca-certificates
           - net-tools
           - chrony
+          - zip
         state: latest

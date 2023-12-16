@@ -29,6 +29,7 @@
           - net-tools
           - chrony
           - procps
+          - zip
         state: latest
 - hosts: localhost
   gather_facts: no
