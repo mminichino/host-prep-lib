@@ -13,6 +13,7 @@ INSTALL_PYTHON=1
 SYSTEM_INSTALL=0
 PIP_EXTRA_ARGS=""
 GIT_URL=""
+PACKAGE_INSTALL=""
 
 PYTHON_VERSION="3.9"
 PIP_VERSION="3.9"
@@ -208,7 +209,7 @@ install_check() {
   pip3 freeze
 }
 
-while getopts "fcsn:g:" opt
+while getopts "fcsn:g:p:" opt
 do
   case $opt in
     f)
@@ -226,6 +227,9 @@ do
       ;;
     g)
       GIT_URL=$OPTARG
+      ;;
+    p)
+      PACKAGE_INSTALL=$OPTARG
       ;;
     \?)
       echo "Invalid Argument"
@@ -305,6 +309,16 @@ fi
 if [ -n "$GIT_URL" ]; then
   echo "Installing package from VCS $GIT_URL"
   if $PIP_BIN install $PIP_EXTRA_ARGS "git+${GIT_URL}" >> $SETUP_LOG 2>&1
+  then
+    echo "Done."
+  else
+    err_exit "Pip failed."
+  fi
+fi
+
+if [ -n "$PACKAGE_INSTALL" ]; then
+  echo "Installing package $PACKAGE_INSTALL"
+  if $PIP_BIN install $PIP_EXTRA_ARGS $PACKAGE_INSTALL >> $SETUP_LOG 2>&1
   then
     echo "Done."
   else
