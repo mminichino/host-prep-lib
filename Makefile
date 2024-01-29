@@ -4,6 +4,8 @@ export PYTHONPATH := $(shell pwd)/test:$(shell pwd):$(PYTHONPATH)
 commit:
 		git commit -am "Version $(shell cat VERSION)"
 		git push
+remote:
+		git push cblabs main
 build:
 		bumpversion --allow-dirty build
 patch:
