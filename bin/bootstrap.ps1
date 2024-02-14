@@ -27,6 +27,6 @@ Invoke-Command {
     scoop install git openssl cmake make jq -g
     scoop bucket add java
     scoop install maven microsoft11-jdk -g
-} 2>&1 | Out-File -FilePath $LogFilePath -NoClobber -Append
+} *>&1 | Out-File -FilePath $LogFilePath -NoClobber -Append
 
 echo "Done."
