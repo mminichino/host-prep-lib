@@ -29,10 +29,11 @@ function Create-ShortCut {
 function PowerShell-Path {
     if (Test-Path -Path "$PSHOME\pwsh.exe")
     {
-        return "$PSHOME\pwsh.exe"
+        $path = "$PSHOME\pwsh.exe"
     } else {
-        return "$PSHOME\powershell.exe"
+        $path = "$PSHOME\powershell.exe"
     }
+    return $path
 }
 
 if (!(Test-CommandAvailable('scoop')))
