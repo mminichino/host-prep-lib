@@ -19,7 +19,11 @@ if (!(Test-CommandAvailable('scoop')))
 }
 
 echo "Installing base software packages"
-Stop-Transcript | out-null
+try
+{
+    Stop-Transcript | out-null
+}
+catch [System.InvalidOperationException]{}
 Start-Transcript -path $env:Temp\bootstrap_log.txt -append
 
 scoop bucket add versions
