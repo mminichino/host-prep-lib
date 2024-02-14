@@ -1,7 +1,7 @@
 #
 #
 Set-StrictMode -Off
-$LogFilePath = $env:Temp\bootstrap_log.txt
+$LogFilePath = "$env:Temp\bootstrap_log.txt"
 
 function Test-CommandAvailable {
     param (
