@@ -42,11 +42,11 @@ function Admin-ShortCut {
 }
 
 function PowerShell-Path {
-    if (Test-Path -Path "$PSHOME\pwsh.exe")
+    if (Test-Path -Path "C:\Program Files\PowerShell\7\pwsh.exe")
     {
-        $path = "$PSHOME\pwsh.exe"
+        $path = "C:\Program Files\PowerShell\7\pwsh.exe"
     } else {
-        $path = "$PSHOME\powershell.exe"
+        $path = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
     }
     return $path
 }
