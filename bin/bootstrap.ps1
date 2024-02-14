@@ -11,6 +11,30 @@ function Test-CommandAvailable {
     return [Boolean](Get-Command $Command -ErrorAction SilentlyContinue)
 }
 
+function Create-ShortCut {
+    param (
+        [Parameter(Mandatory = $True, Position = 0)]
+        [string] $SourceExe,
+        [Parameter(Mandatory = $True, Position = 1)]
+        [string] $ShortcutName
+    )
+
+    $DestinationPath = "$HOME\Desktop\$ShortcutName.lnk"
+    $WshShell = New-Object -comObject WScript.Shell
+    $Shortcut = $WshShell.CreateShortcut($DestinationPath)
+    $Shortcut.TargetPath = $SourceExe
+    $Shortcut.Save()
+}
+
+function PowerShell-Path {
+    if (Test-Path -Path "$PSHOME\pwsh.exe")
+    {
+        return "$PSHOME\pwsh.exe"
+    } else {
+        return "$PSHOME\powershell.exe"
+    }
+}
+
 if (!(Test-CommandAvailable('scoop')))
 {
     echo "Installing Scoop package manager"
@@ -28,5 +52,9 @@ Invoke-Command {
     scoop bucket add java
     scoop install maven microsoft11-jdk -g
 } *>&1 | Out-File -FilePath $LogFilePath -NoClobber -Append
+
+echo "Creating shortcuts"
+$PowerShellPath = PowerShell-Path
+Create-ShortCut($PowerShellPath, "PowerShell")
 
 echo "Done."
