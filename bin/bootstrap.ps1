@@ -20,10 +20,25 @@ function Create-ShortCut {
     )
 
     $DestinationPath = "$HOME\Desktop\$ShortcutName.lnk"
+    if (Test-Path -Path $DestinationPath) {
+        return
+    }
     $WshShell = New-Object -comObject WScript.Shell
     $Shortcut = $WshShell.CreateShortcut($DestinationPath)
     $Shortcut.TargetPath = $SourceExe
     $Shortcut.Save()
+}
+
+function Admin-ShortCut {
+      param (
+        [Parameter(Mandatory = $True, Position = 0)]
+        [string] $ShortcutName
+    )
+
+      $DestinationPath = "$HOME\Desktop\$ShortcutName.lnk"
+      $bytes = [System.IO.File]::ReadAllBytes($DestinationPath)
+      $bytes[0x15] = $bytes[0x15] -bor 0x20
+      [System.IO.File]::WriteAllBytes($DestinationPath, $bytes)
 }
 
 function PowerShell-Path {
@@ -57,5 +72,7 @@ Invoke-Command {
 echo "Creating shortcuts"
 $PowerShellPath = PowerShell-Path
 Create-ShortCut $PowerShellPath "PowerShell"
+Create-ShortCut $PowerShellPath "AdminShell"
+Admin-ShortCut "AdminShell"
 
 echo "Done."
