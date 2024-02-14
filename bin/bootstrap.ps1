@@ -1,6 +1,7 @@
 #
 #
 Set-StrictMode -Off
+$LogFilePath = $env:Temp\bootstrap_log.txt
 
 function Test-CommandAvailable {
     param (
@@ -19,18 +20,13 @@ if (!(Test-CommandAvailable('scoop')))
 }
 
 echo "Installing base software packages"
-try
-{
-    Stop-Transcript | out-null
-}
-catch [System.InvalidOperationException]{}
-Start-Transcript -path $env:Temp\bootstrap_log.txt -append
 
-scoop bucket add versions
-scoop install python311 -g
-scoop install git openssl cmake make jq -g
-scoop bucket add java
-scoop install maven microsoft11-jdk -g
+Invoke-Command {
+    scoop bucket add versions
+    scoop install python311 -g
+    scoop install git openssl cmake make jq -g
+    scoop bucket add java
+    scoop install maven microsoft11-jdk -g
+} | Out-File -FilePath $LogFilePath -NoClobber -Append
 
-Stop-Transcript
 echo "Done."
