@@ -1,7 +1,22 @@
 #
 #
-echo "Installing Scoop package manager"
-iex "& {$(irm get.scoop.sh)} -RunAsAdmin"
+Set-StrictMode -Off
+
+function Test-CommandAvailable {
+    param (
+        [Parameter(Mandatory = $True, Position = 0)]
+        [String] $Command
+    )
+    return [Boolean](Get-Command $Command -ErrorAction SilentlyContinue)
+}
+
+if (!(Test-CommandAvailable('scoop')))
+{
+    echo "Installing Scoop package manager"
+    iex "& {$( irm get.scoop.sh )} -RunAsAdmin"
+} else {
+    echo "Scoop package manager already installed"
+}
 
 echo "Installing base software packages"
 Stop-Transcript | out-null
