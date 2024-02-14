@@ -56,6 +56,6 @@ Invoke-Command {
 
 echo "Creating shortcuts"
 $PowerShellPath = PowerShell-Path
-Create-ShortCut($PowerShellPath, "PowerShell")
+Create-ShortCut $PowerShellPath "PowerShell"
 
 echo "Done."
