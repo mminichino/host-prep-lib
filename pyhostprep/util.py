@@ -2,6 +2,7 @@
 ##
 
 import os
+import glob
 from pwd import getpwnam
 from grp import getgrnam
 
@@ -39,3 +40,9 @@ class FileManager(object):
             os.chmod(name, mode)
         else:
             self.make_dir(name, owner, group, mode)
+
+    @staticmethod
+    def find_file(name: str, path: str):
+        full_path = os.path.join(path, name)
+        result = glob.glob(full_path)
+        return result[0] if len(result) > 0 else None

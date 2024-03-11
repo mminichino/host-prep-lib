@@ -1,6 +1,8 @@
 ##
 ##
 
+import os
+
 GREY_COLOR = "\x1b[38;20m"
 YELLOW_COLOR = "\x1b[33;20m"
 RED_COLOR = "\x1b[31;20m"
@@ -13,3 +15,8 @@ FORMAT_MESSAGE = "%(message)s"
 FORMAT_LINE = "(%(filename)s:%(lineno)d)"
 FORMAT_EXTRA = " [%(name)s](%(filename)s:%(lineno)d)"
 FORMAT_TIMESTAMP = "%(asctime)s"
+
+if os.name == 'nt':
+    TEMP_DIR = os.environ['TEMP']
+else:
+    TEMP_DIR = '/var/tmp'

@@ -22,8 +22,7 @@ class BundleMgrCLI(CLI):
     @override()
     def local_args(self):
         self.parser.add_argument('-b', '--bundles', nargs='+', help='List of bundles to deploy')
-        self.parser.add_argument('-c', '--cbs', action='store', help="Couchbase Server Version String")
-        self.parser.add_argument('-s', '--sgw', action='store', help="Sync Gateway Version String")
+        self.parser.add_argument('-V', '--version', action='store', help="Software Version", default="latest")
 
     def is_time_synced(self):
         return self.host_info.system.is_running("ntp") \
@@ -65,17 +64,17 @@ class BundleMgrCLI(CLI):
                     logger.info(f"Getting value for variable {extra_var}")
                     if extra_var == "cbs_download_url":
                         sw = SoftwareManager()
-                        version = self.options.cbs if self.options.cbs else sw.cbs_latest
+                        version = self.options.version if self.options.version and self.options.version != 'latest' else sw.cbs_latest
                         url = sw.get_cbs_download(version, self.op)
                         extra_vars.update({'cbs_download_url': url})
                     elif extra_var == "sgw_download_rpm":
                         sw = SoftwareManager()
-                        version = self.options.sgw if self.options.sgw else sw.sgw_latest(self.op)
+                        version = self.options.version if self.options.version and self.options.version != 'latest' else sw.sgw_latest(self.op)
                         url = sw.get_sgw_rpm(version, self.op.os.machine)
                         extra_vars.update({'sgw_download_rpm': url})
                     elif extra_var == "sgw_download_deb":
                         sw = SoftwareManager()
-                        version = self.options.sgw if self.options.sgw else sw.sgw_latest(self.op)
+                        version = self.options.version if self.options.version and self.options.version != 'latest' else sw.sgw_latest(self.op)
                         url = sw.get_sgw_apt(version, self.op.os.machine)
                         extra_vars.update({'sgw_download_deb': url})
                     elif extra_var == "libcouchbase_repo":

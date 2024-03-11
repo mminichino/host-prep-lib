@@ -7,8 +7,11 @@ from requests.adapters import HTTPAdapter
 import re
 import json
 import warnings
+import os
 from pyhostprep.bundles import SoftwareBundle
 from pyhostprep.retry import retry
+from pyhostprep.constants import TEMP_DIR
+from pyhostprep.util import FileManager
 
 
 class SoftwareManager(object):
@@ -125,14 +128,17 @@ class SoftwareManager(object):
         platform = f"{os_name_str}{os_release_str}"
         for test_platform in [platform, 'linux']:
             if SoftwareManager.pkg_type.get(os_name) == "rpm":
-                platform_link = f"https://packages.couchbase.com/releases/{release}/couchbase-server-enterprise-{release}-{test_platform}.{arch}.rpm"
+                file_name = f"couchbase-server-enterprise-{release}-{test_platform}.{arch}.rpm"
+                platform_link = f"https://packages.couchbase.com/releases/{release}/{file_name}"
             else:
-                platform_link = f"https://packages.couchbase.com/releases/{release}/couchbase-server-enterprise_{release}-{test_platform}_{arch}.deb"
-            response = requests.head(platform_link, verify=False, timeout=15)
-            if response.status_code != 200:
-                continue
-            else:
+                file_name = f"couchbase-server-enterprise_{release}-{test_platform}_{arch}.deb"
+                platform_link = f"https://packages.couchbase.com/releases/{release}/{file_name}"
+            if FileManager().find_file(file_name, TEMP_DIR):
+                return os.path.join(TEMP_DIR, file_name)
+            elif requests.head(platform_link, verify=False, timeout=15).status_code == 200:
                 return platform_link
+            else:
+                continue
         return None
 
     @staticmethod
