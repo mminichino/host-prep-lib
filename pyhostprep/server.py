@@ -34,7 +34,7 @@ class ServerConfig:
     services: Optional[Sequence[str]] = attr.ib(default=("data", "index", "query"))
     username: Optional[str] = attr.ib(default="Administrator")
     password: Optional[str] = attr.ib(default="password")
-    hostname: Optional[str] = attr.ib(default="localhost")
+    host_list: Optional[List[str]] = attr.ib(default=None)
     index_mem_opt: Optional[IndexMemoryOption] = attr.ib(default=IndexMemoryOption.default)
     availability_zone: Optional[str] = attr.ib(default="primary")
     data_path: Optional[str] = attr.ib(default="/opt/couchbase/var/lib/couchbase/data")
@@ -54,17 +54,19 @@ class ServerConfig:
                services: Sequence[str] = ("data", "index", "query"),
                username: str = "Administrator",
                password: str = "password",
-               hostname: str = "localhost",
+               host_list=None,
                index_mem_opt: IndexMemoryOption = IndexMemoryOption.default,
                availability_zone: str = "primary",
                data_path: str = "/opt/couchbase/var/lib/couchbase/data"):
+        if host_list is None:
+            host_list = []
         return cls(
             name,
             ip_list,
             services,
             username,
             password,
-            hostname,
+            host_list,
             index_mem_opt,
             availability_zone,
             data_path
@@ -78,7 +80,7 @@ class CouchbaseServer(object):
         self.ip_list = config.ip_list
         self.username = config.username
         self.password = config.password
-        self.hostname = config.hostname
+        self.host_list = config.host_list
         self.data_path = config.data_path
         self.index_mem_opt = config.index_mem_opt
         self.availability_zone = config.availability_zone
@@ -153,12 +155,14 @@ class CouchbaseServer(object):
             internal_ip = "127.0.0.1"
             external_ip = None
             external_access = False
-        elif self.hostname != "localhost":
-            internal_ip = self.hostname
+        elif self.host_list and len(self.host_list) > 0:
+            internal_address = NetworkInfo().get_ip_address()
+            my_index = self.ip_list.index(internal_address)
+            internal_ip = self.host_list[my_index]
             external_ip = None
             external_access = False
-            internal_address = NetworkInfo().get_ip_address()
-            FileManager().file_append('/etc/hosts', f"{internal_address} {self.hostname}")
+            for (ip_address, hostname) in zip(self.ip_list, self.host_list):
+                FileManager().file_append('/etc/hosts', f"{ip_address} {hostname}")
         else:
             external_ip = NetworkInfo().get_pubic_ip_address()
             if external_ip and external_ip in self.ip_list:
