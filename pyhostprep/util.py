@@ -46,3 +46,8 @@ class FileManager(object):
         full_path = os.path.join(path, name)
         result = glob.glob(full_path)
         return result[0] if len(result) > 0 else None
+
+    @staticmethod
+    def file_append(filename: str, line: str):
+        with open(filename, 'a') as file:
+            file.write(f"{line}\n")

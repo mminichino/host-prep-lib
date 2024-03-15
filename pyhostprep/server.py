@@ -12,6 +12,7 @@ from typing import Optional, List, Sequence
 from pyhostprep.network import NetworkInfo
 from pyhostprep.command import RunShellCommand, RCNotZero
 from pyhostprep.exception import FatalError
+from pyhostprep.util import FileManager
 
 logger = logging.getLogger('hostprep.server')
 logger.addHandler(logging.NullHandler())
@@ -156,6 +157,8 @@ class CouchbaseServer(object):
             internal_ip = self.hostname
             external_ip = None
             external_access = False
+            internal_address = NetworkInfo().get_ip_address()
+            FileManager().file_append('/etc/hosts', f"{internal_address} {self.hostname}")
         else:
             external_ip = NetworkInfo().get_pubic_ip_address()
             if external_ip and external_ip in self.ip_list:
