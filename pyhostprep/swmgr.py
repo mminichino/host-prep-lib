@@ -28,6 +28,7 @@ class SWMgrCLI(CLI):
         opt_parser.add_argument('-s', '--services', dest='services', action='store', default='data,index,query')
         opt_parser.add_argument('-u', '--username', dest='username', action='store', default='Administrator')
         opt_parser.add_argument('-p', '--password', dest='password', action='store', default='password')
+        opt_parser.add_argument('-h', '--hostname', dest='hostname', action='store', default='localhost')
         opt_parser.add_argument('-b', '--bucket', dest='bucket', action='store', default='default')
         opt_parser.add_argument('-i', '--index_mem', dest='index_mem', action='store', default='default')
         opt_parser.add_argument('-g', '--group', dest='group', action='store', default='primary')
@@ -52,6 +53,7 @@ class SWMgrCLI(CLI):
                           self.options.services.split(','),
                           self.options.username,
                           self.options.password,
+                          self.options.hostname,
                           IndexMemoryOption[self.options.index_mem],
                           self.options.group,
                           self.options.data_path)

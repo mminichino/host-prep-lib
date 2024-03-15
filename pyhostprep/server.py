@@ -33,6 +33,7 @@ class ServerConfig:
     services: Optional[Sequence[str]] = attr.ib(default=("data", "index", "query"))
     username: Optional[str] = attr.ib(default="Administrator")
     password: Optional[str] = attr.ib(default="password")
+    hostname: Optional[str] = attr.ib(default="localhost")
     index_mem_opt: Optional[IndexMemoryOption] = attr.ib(default=IndexMemoryOption.default)
     availability_zone: Optional[str] = attr.ib(default="primary")
     data_path: Optional[str] = attr.ib(default="/opt/couchbase/var/lib/couchbase/data")
@@ -52,6 +53,7 @@ class ServerConfig:
                services: Sequence[str] = ("data", "index", "query"),
                username: str = "Administrator",
                password: str = "password",
+               hostname: str = "localhost",
                index_mem_opt: IndexMemoryOption = IndexMemoryOption.default,
                availability_zone: str = "primary",
                data_path: str = "/opt/couchbase/var/lib/couchbase/data"):
@@ -61,6 +63,7 @@ class ServerConfig:
             services,
             username,
             password,
+            hostname,
             index_mem_opt,
             availability_zone,
             data_path
@@ -74,6 +77,7 @@ class CouchbaseServer(object):
         self.ip_list = config.ip_list
         self.username = config.username
         self.password = config.password
+        self.hostname = config.hostname
         self.data_path = config.data_path
         self.index_mem_opt = config.index_mem_opt
         self.availability_zone = config.availability_zone
@@ -146,6 +150,10 @@ class CouchbaseServer(object):
     def get_net_config(self):
         if self.rally_ip_address == "127.0.0.1":
             internal_ip = "127.0.0.1"
+            external_ip = None
+            external_access = False
+        elif self.hostname != "localhost":
+            internal_ip = self.hostname
             external_ip = None
             external_access = False
         else:
