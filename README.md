@@ -1,4 +1,4 @@
-# host-prep-lib 1.0.3
+# host-prep-lib 1.0.4
 
 Automation for preparing a host to run Couchbase software.
 
