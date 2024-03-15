@@ -149,9 +149,13 @@ class CouchbaseServer(object):
             external_ip = None
             external_access = False
         else:
-            internal_ip = NetworkInfo().get_ip_address()
             external_ip = NetworkInfo().get_pubic_ip_address()
-            external_access = NetworkInfo().check_port(external_ip, 8091)
+            if external_ip and external_ip in self.ip_list:
+                internal_ip = external_ip
+                external_access = False
+            else:
+                internal_ip = NetworkInfo().get_ip_address()
+                external_access = NetworkInfo().check_port(external_ip, 8091)
         return internal_ip, external_ip, external_access
 
     def is_node(self):

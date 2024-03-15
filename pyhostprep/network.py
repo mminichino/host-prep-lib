@@ -32,6 +32,8 @@ class NetworkInfo(object):
 
     @staticmethod
     def check_port(address: str, port: int):
+        if not address:
+            return False
         socket.setdefaulttimeout(2)
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         result = sock.connect_ex((address, port))
