@@ -7,6 +7,7 @@ import logging
 import socket
 import time
 from enum import Enum
+
 from cbcmgr.httpsessionmgr import APISession
 from typing import Optional, List, Sequence
 from pyhostprep.network import NetworkInfo
@@ -80,22 +81,26 @@ class CouchbaseServer(object):
         self.ip_list = config.ip_list
         self.username = config.username
         self.password = config.password
-        self.host_list = config.host_list
+        self.host_list = config.host_list if config.host_list is not None else []
         self.data_path = config.data_path
         self.index_mem_opt = config.index_mem_opt
         self.availability_zone = config.availability_zone
         self.services = config.services if config.services != ["default"] else ["data", "index", "query"]
 
-        self.rally_ip_address = self.ip_list[0]
         self.data_quota = None
         self.analytics_quota = None
         self.index_quota = None
         self.fts_quota = None
         self.eventing_quota = None
-        self.internal_ip, self.external_ip, self.external_access = self.get_net_config()
+        self.internal_ip, self.external_ip, self.external_access, self.rally_ip_address = self.get_net_config()
         self.get_mem_config()
 
         logger.info(f"Member list: {','.join(self.ip_list)}")
+        logger.info(f"Host list: {','.join(self.host_list) if len(self.host_list) > 0 else 'None'}")
+        logger.info(f"Internal IP: {self.internal_ip}")
+        logger.info(f"External IP: {self.external_ip}")
+        logger.info(f"External Access: {self.external_access}")
+        logger.info(f"Rally Host: {self.rally_ip_address}")
 
         self.admin_port = 8091
         if not self.wait_port(self.internal_ip, self.admin_port):
@@ -151,8 +156,8 @@ class CouchbaseServer(object):
         self.data_quota = str(data_quota)
 
     def get_net_config(self):
-        if self.rally_ip_address == "127.0.0.1":
-            internal_ip = "127.0.0.1"
+        if self.ip_list[0] == "127.0.0.1":
+            internal_ip = rally_address = "127.0.0.1"
             external_ip = None
             external_access = False
         elif self.host_list and len(self.host_list) > 0:
@@ -161,17 +166,16 @@ class CouchbaseServer(object):
             internal_ip = self.host_list[my_index]
             external_ip = None
             external_access = False
+            rally_address = self.host_list[0]
             for (ip_address, hostname) in zip(self.ip_list, self.host_list):
-                FileManager().file_append('/etc/hosts', f"{ip_address} {hostname}")
+                if not NetworkInfo().check_hostname(hostname):
+                    FileManager().file_append('/etc/hosts', f"{ip_address} {hostname}")
         else:
             external_ip = NetworkInfo().get_pubic_ip_address()
-            if external_ip and external_ip in self.ip_list:
-                internal_ip = external_ip
-                external_access = False
-            else:
-                internal_ip = NetworkInfo().get_ip_address()
-                external_access = NetworkInfo().check_port(external_ip, 8091)
-        return internal_ip, external_ip, external_access
+            internal_ip = NetworkInfo().get_ip_address()
+            external_access = NetworkInfo().check_port(external_ip, 8091)
+            rally_address = self.ip_list[0]
+        return internal_ip, external_ip, external_access, rally_address
 
     def is_node(self):
         cmd = [

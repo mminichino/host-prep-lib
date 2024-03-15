@@ -42,3 +42,11 @@ class NetworkInfo(object):
             return True
         else:
             return False
+
+    @staticmethod
+    def check_hostname(hostname: str):
+        try:
+            socket.gethostbyname(hostname)
+            return True
+        except socket.error:
+            return False
