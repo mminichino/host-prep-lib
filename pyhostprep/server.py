@@ -168,8 +168,10 @@ class CouchbaseServer(object):
             external_access = False
             rally_address = self.host_list[0]
             for (ip_address, hostname) in zip(self.ip_list, self.host_list):
-                if not NetworkInfo().check_hostname(hostname):
-                    FileManager().file_append('/etc/hosts', f"{ip_address} {hostname}")
+                host_file = '/etc/hosts'
+                entry_string = f"{ip_address} {hostname}"
+                if not FileManager().file_search(host_file, entry_string):
+                    FileManager().file_append(host_file, entry_string)
         else:
             external_ip = NetworkInfo().get_pubic_ip_address()
             internal_ip = NetworkInfo().get_ip_address()

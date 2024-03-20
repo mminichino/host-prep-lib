@@ -51,3 +51,9 @@ class FileManager(object):
     def file_append(filename: str, line: str):
         with open(filename, 'a') as file:
             file.write(f"{line}\n")
+
+    @staticmethod
+    def file_search(filename: str, line: str):
+        if line in open(filename, 'r').read():
+            return True
+        return False
