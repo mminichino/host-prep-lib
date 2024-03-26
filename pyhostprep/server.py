@@ -86,6 +86,7 @@ class CouchbaseServer(object):
         self.index_mem_opt = config.index_mem_opt
         self.availability_zone = config.availability_zone
         self.services = config.services if config.services != ["default"] else ["data", "index", "query"]
+        self.services = ["fts" if e == "search" else e for e in self.services]
 
         self.data_quota = None
         self.analytics_quota = None
