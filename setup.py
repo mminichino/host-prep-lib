@@ -36,7 +36,7 @@ setup(
         "bumpversion>=0.6.0",
         "psutil>=5.9.5",
         "cbcmgr>=2.1.5",
-        "Jinja2>=3.1.3"
+        "Jinja2>=3.0.0"
     ],
     author_email='info@unix.us.com',
     description='Couchbase Host Automation Library',
