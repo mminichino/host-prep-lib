@@ -8,7 +8,7 @@ import socket
 import time
 from enum import Enum
 
-from cbcmgr.httpsessionmgr import APISession
+from pyhostprep.httpsessionmgr import APISession
 from typing import Optional, List, Sequence
 from pyhostprep.network import NetworkInfo
 from pyhostprep.command import RunShellCommand, RCNotZero
