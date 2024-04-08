@@ -17,6 +17,12 @@
         name: parted
         state: latest
       when: os_major == "2"
+    - name: Sudo path
+      copy:
+        dest: /etc/sudoers.d/80-sudo-path
+        content: |
+          Defaults  env_keep += "PATH"
+        mode: 0440
 - hosts: localhost
   gather_facts: no
   name: Install Main
