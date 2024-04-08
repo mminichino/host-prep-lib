@@ -12,6 +12,11 @@
       ansible.builtin.shell:
         cmd: amazon-linux-extras install epel -y
       when: os_major == "2"
+    - name: Install Parted
+      ansible.builtin.yum:
+        name: parted
+        state: latest
+      when: os_major == "2"
 - hosts: localhost
   gather_facts: no
   name: Install Main
