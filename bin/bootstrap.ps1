@@ -62,7 +62,7 @@ if (!(Test-CommandAvailable('scoop')))
 echo "Installing base software packages"
 
 Invoke-Command {
-    scoop install git openssl cmake make jq curl -g
+    scoop install git openssl cmake make jq curl tar gzip -g
     scoop bucket add versions
     scoop install python311 -g
     scoop bucket add java
