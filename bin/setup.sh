@@ -201,6 +201,18 @@ set_pip_link() {
   true
 }
 
+set_sudo_secure_path() {
+if [ -d /etc/sudoers.d ]; then
+cat <<EOF > /etc/sudoers.d/99-sudo-secure-path
+Defaults secure_path="/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin:/usr/local/sbin:/snap/bin"
+EOF
+else
+cat <<EOF > /etc/sudoers
+Defaults secure_path="/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin:/usr/local/sbin:/snap/bin"
+EOF
+fi
+}
+
 install_check() {
   echo "Package Directory: $PACKAGE_DIR"
   cd "$PACKAGE_DIR" || err_exit "can not change to package directory"
@@ -332,5 +344,8 @@ then
   "${SCRIPT_DIR}/post_setup.sh" >> $SETUP_LOG 2>&1
   [ $? -ne 0 ] && err_exit "Post setup script error."
 fi
+
+echo "Setting sudo secure path."
+set_sudo_secure_path
 
 echo "Setup complete."
