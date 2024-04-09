@@ -206,6 +206,7 @@ if [ -d /etc/sudoers.d ]; then
 cat <<EOF > /etc/sudoers.d/99-sudo-secure-path
 Defaults secure_path="/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin:/usr/local/sbin:/snap/bin"
 EOF
+chmod 440 /etc/sudoers.d/99-sudo-secure-path
 else
 cat <<EOF > /etc/sudoers
 Defaults secure_path="/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin:/usr/local/sbin:/snap/bin"
