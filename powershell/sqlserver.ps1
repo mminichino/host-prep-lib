@@ -45,4 +45,4 @@ C:\Temp\SSMS-Setup-ENU.exe /Install /Passive /SSMSInstallRoot="C:\Program Files 
 Create-ShortCut "C:\Windows\SysWOW64\mmc.exe" "SQL Server Config" "/32 C:\Windows\SysWOW64\SQLServerManager16.msc"
 Create-ShortCut "C:\Program Files (x86)\Microsoft SQL Server Management Studio 20\Common7\IDE\Ssms.exe" "SQL Server Management"
 
-& "C:\Program Files\Microsoft SQL Server\160\Tools\Binn\osql" -E -Q "IF db_id('ycsb') IS NULL CREATE DATABASE [ycsb] ;"
+#& "C:\Program Files\Microsoft SQL Server\160\Tools\Binn\osql" -E -Q "IF db_id('testdb') IS NULL CREATE DATABASE [testdb] ;"
