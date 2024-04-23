@@ -1,0 +1,53 @@
+---
+- hosts: localhost
+  gather_facts: no
+  name: Data Disk
+  tasks:
+    - name: Check For Container
+      stat: path=/.dockerenv
+      register: dockerenv
+    - meta: end_play
+      when: dockerenv.stat.exists
+    - name: Check For Mountpoint
+      command: mountpoint -q /u01
+      register: volume_check
+      failed_when: False
+      changed_when: False
+    - meta: end_play
+      when: volume_check.rc == 0
+    - name: Get Data Device
+      ansible.builtin.shell:
+        cmd: storagemgr -D -n 3
+      register: data_disk_output
+    - set_fact:
+        data_disk_device: "{{ data_disk_output.stdout }}"
+    - name: Check Disk Device
+      ansible.builtin.fail:
+        msg: "Data disk not found"
+      when: data_disk_device is undefined or data_disk_device == None or data_disk_device | length == 0
+    - name: Create Partition
+      community.general.parted:
+        device: "{{ data_disk_device }}"
+        number: 1
+        state: present
+        fs_type: ext4
+    - name: Get Partition Device
+      ansible.builtin.shell:
+        cmd: "storagemgr -p {{ data_disk_device }}"
+      register: data_partition_output
+    - set_fact:
+        data_partition_device: "{{ data_partition_output.stdout }}"
+    - name: Check Disk Partition
+      ansible.builtin.fail:
+        msg: "Disk partition not found"
+      when: data_partition_device is undefined or data_partition_device == None or data_partition_device | length == 0
+    - name: Create Filesystem
+      community.general.filesystem:
+        fstype: ext4
+        dev: "{{ data_partition_device }}"
+    - name: Mount Filesystem
+      ansible.posix.mount:
+        path: /u01
+        src: "{{ data_partition_device }}"
+        fstype: ext4
+        state: mounted

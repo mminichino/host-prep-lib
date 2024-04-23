@@ -196,6 +196,31 @@
         "post": null
       }
     },
+    "GenDataDisk": {
+      "centos|rhel|amzn|rocky|ol|fedora|ubuntu|debian|opensuse-leap|sles": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "configure_data_mnt.yaml",
+        "post": null
+      }
+    },
+    "GenDBNode": {
+      "centos|rhel|amzn|rocky|ol|fedora|ubuntu|debian|opensuse-leap|sles": {
+        "requires": [
+          "Base",
+          "Chrony",
+          "Firewall",
+          "THP",
+          "Swappiness",
+          "Swap"
+        ],
+        "pre": null,
+        "run": "configure_data_mnt.yaml",
+        "post": null
+      }
+    },
     "CBS": {
       "centos|rhel|amzn|rocky|ol|fedora": {
         "requires": [
