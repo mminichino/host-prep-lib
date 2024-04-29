@@ -1,13 +1,15 @@
 ##
 ##
 
+import re
 import attr
 import psutil
 import logging
 import socket
 import time
+from functools import cmp_to_key
 from enum import Enum
-
+from itertools import zip_longest
 from pyhostprep.httpsessionmgr import APISession
 from typing import Optional, List, Sequence
 from pyhostprep.network import NetworkInfo
@@ -17,6 +19,17 @@ from pyhostprep.util import FileManager
 
 logger = logging.getLogger('hostprep.server')
 logger.addHandler(logging.NullHandler())
+
+
+def service_cmp(a, b):
+    if a[2] == b[2]:
+        return 0
+    if a[2] is not None and (a[2] == 'default' or re.search('data', a[2])):
+        return -1
+    if b[2] is not None and (b[2] == 'default' or re.search('data', b[2])):
+        return 1
+    else:
+        return 0
 
 
 class ClusterSetupError(FatalError):
@@ -36,6 +49,7 @@ class ServerConfig:
     username: Optional[str] = attr.ib(default="Administrator")
     password: Optional[str] = attr.ib(default="password")
     host_list: Optional[List[str]] = attr.ib(default=None)
+    service_list: Optional[List[str]] = attr.ib(default=None)
     index_mem_opt: Optional[IndexMemoryOption] = attr.ib(default=IndexMemoryOption.default)
     availability_zone: Optional[str] = attr.ib(default="primary")
     data_path: Optional[str] = attr.ib(default="/opt/couchbase/var/lib/couchbase/data")
@@ -56,6 +70,7 @@ class ServerConfig:
                username: str = "Administrator",
                password: str = "password",
                host_list=None,
+               service_list=None,
                index_mem_opt: IndexMemoryOption = IndexMemoryOption.default,
                availability_zone: str = "primary",
                data_path: str = "/opt/couchbase/var/lib/couchbase/data"):
@@ -68,6 +83,7 @@ class ServerConfig:
             username,
             password,
             host_list,
+            service_list,
             index_mem_opt,
             availability_zone,
             data_path
@@ -78,15 +94,18 @@ class CouchbaseServer(object):
 
     def __init__(self, config: ServerConfig):
         self.cluster_name = config.name
-        self.ip_list = config.ip_list
+        ip_list = config.ip_list
+        service_list = config.service_list if config.service_list is not None else []
         self.username = config.username
         self.password = config.password
-        self.host_list = config.host_list if config.host_list is not None else []
+        host_list = config.host_list if config.host_list is not None else []
         self.data_path = config.data_path
         self.index_mem_opt = config.index_mem_opt
         self.availability_zone = config.availability_zone
         self.services = config.services if config.services != ["default"] else ["data", "index", "query"]
         self.services = ["fts" if e == "search" else e for e in self.services]
+
+        self.ip_list, self.host_list, self.service_list = self.create_node_lists(ip_list, host_list, service_list)
 
         self.data_quota = None
         self.analytics_quota = None
@@ -110,6 +129,18 @@ class CouchbaseServer(object):
         if not self.wait_port(self.rally_ip_address, self.admin_port):
             logger.error(f"Can not connect to admin port on rally node {self.rally_ip_address}")
             raise ClusterSetupError(f"Host {self.rally_ip_address}:{self.admin_port} is not reachable")
+
+    @staticmethod
+    def create_node_lists(ip_list, host_list, service_list):
+        service_cmp_key = cmp_to_key(service_cmp)
+        result = list(zip_longest(ip_list, host_list, service_list))
+        result.sort(key=service_cmp_key)
+
+        _ip_list = [e[0] for e in result if e[0] is not None]
+        _host_list = [e[1] for e in result if e[1] is not None]
+        _service_list = [e[2] for e in result if e[2] is not None]
+
+        return _ip_list, _host_list, _service_list
 
     def get_mem_config(self):
         host_mem = psutil.virtual_memory()
