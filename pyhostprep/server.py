@@ -125,7 +125,6 @@ class CouchbaseServer(object):
         self.fts_quota = None
         self.eventing_quota = None
         self.internal_ip, self.external_ip, self.external_access, self.rally_ip_address, self.node_index = self.get_net_config()
-        self.get_mem_config()
 
         try:
             _services_entry = self.service_list[self.node_index].split(',')
@@ -134,6 +133,7 @@ class CouchbaseServer(object):
             _services = config.services if config.services != ["default"] else ["data", "index", "query"]
 
         self.services = ["fts" if e == "search" else e for e in _services]
+        self.get_mem_config()
 
         self.rally_ip_address = self.read_config()
 
