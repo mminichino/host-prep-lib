@@ -1,12 +1,15 @@
 ##
 ##
 
+import os
 import re
 import attr
 import psutil
 import logging
 import socket
 import time
+import configparser
+from pathlib import Path
 from functools import cmp_to_key
 from enum import Enum
 from itertools import zip_longest
@@ -19,6 +22,8 @@ from pyhostprep.util import FileManager
 
 logger = logging.getLogger('hostprep.server')
 logger.addHandler(logging.NullHandler())
+CONFIG_DIR = os.path.join(Path.home(), '.swmgr')
+CONFIG_FILE = os.path.join(CONFIG_DIR, 'server.cfg')
 
 
 def service_cmp(a, b):
@@ -93,6 +98,8 @@ class ServerConfig:
 class CouchbaseServer(object):
 
     def __init__(self, config: ServerConfig):
+        self._init_complete = False
+        self.config_data = configparser.ConfigParser()
         self.cluster_name = config.name
         ip_list = config.ip_list
         service_list = config.service_list if config.service_list is not None else []
@@ -102,8 +109,13 @@ class CouchbaseServer(object):
         self.data_path = config.data_path
         self.index_mem_opt = config.index_mem_opt
         self.availability_zone = config.availability_zone
-        self.services = config.services if config.services != ["default"] else ["data", "index", "query"]
-        self.services = ["fts" if e == "search" else e for e in self.services]
+
+        try:
+            FileManager().make_dir(CONFIG_DIR)
+            self.config_data.read(CONFIG_FILE)
+        except Exception as e:
+            message = f"Failed to make config directory {CONFIG_DIR}: {e}"
+            raise ClusterSetupError(message)
 
         self.ip_list, self.host_list, self.service_list = self.create_node_lists(ip_list, host_list, service_list)
 
@@ -112,15 +124,27 @@ class CouchbaseServer(object):
         self.index_quota = None
         self.fts_quota = None
         self.eventing_quota = None
-        self.internal_ip, self.external_ip, self.external_access, self.rally_ip_address = self.get_net_config()
+        self.internal_ip, self.external_ip, self.external_access, self.rally_ip_address, self.node_index = self.get_net_config()
         self.get_mem_config()
+
+        try:
+            _services_entry = self.service_list[self.node_index].split(',')
+            _services = _services_entry if _services_entry != ["default"] else ["data", "index", "query"]
+        except IndexError:
+            _services = config.services if config.services != ["default"] else ["data", "index", "query"]
+
+        self.services = ["fts" if e == "search" else e for e in _services]
+
+        self.rally_ip_address = self.read_config()
 
         logger.info(f"Member list: {','.join(self.ip_list)}")
         logger.info(f"Host list: {','.join(self.host_list) if len(self.host_list) > 0 else 'None'}")
+        logger.info(f"Service list: {':'.join(self.service_list) if len(self.service_list) > 0 else 'None'}")
         logger.info(f"Internal IP: {self.internal_ip}")
         logger.info(f"External IP: {self.external_ip}")
         logger.info(f"External Access: {self.external_access}")
         logger.info(f"Rally Host: {self.rally_ip_address}")
+        logger.info(f"Services: {self.config_data.get('cluster', 'services', fallback=','.join(self.services))}")
 
         self.admin_port = 8091
         if not self.wait_port(self.internal_ip, self.admin_port):
@@ -129,6 +153,24 @@ class CouchbaseServer(object):
         if not self.wait_port(self.rally_ip_address, self.admin_port):
             logger.error(f"Can not connect to admin port on rally node {self.rally_ip_address}")
             raise ClusterSetupError(f"Host {self.rally_ip_address}:{self.admin_port} is not reachable")
+
+        self._init_complete = True
+
+    def __del__(self):
+        if self._init_complete:
+            logger.info("Done.")
+            self.write_config()
+
+    def read_config(self):
+        return self.config_data.get('cluster', 'rally_ip_address', fallback=self.rally_ip_address)
+
+    def write_config(self):
+        try:
+            self.config_data.set('cluster', 'rally_ip_address', self.rally_ip_address)
+        except configparser.NoSectionError:
+            self.config_data['cluster'] = dict(rally_ip_address=self.rally_ip_address)
+        with open(CONFIG_FILE, 'w') as configfile:
+            self.config_data.write(configfile)
 
     @staticmethod
     def create_node_lists(ip_list, host_list, service_list):
@@ -192,6 +234,7 @@ class CouchbaseServer(object):
             internal_ip = rally_address = "127.0.0.1"
             external_ip = None
             external_access = False
+            my_index = 0
         elif self.host_list and len(self.host_list) > 0:
             internal_address = NetworkInfo().get_ip_address()
             my_index = self.ip_list.index(internal_address)
@@ -207,9 +250,11 @@ class CouchbaseServer(object):
         else:
             external_ip = NetworkInfo().get_pubic_ip_address()
             internal_ip = NetworkInfo().get_ip_address()
+            my_index = self.ip_list.index(internal_ip)
             external_access = NetworkInfo().check_port(external_ip, 8091)
             rally_address = self.ip_list[0]
-        return internal_ip, external_ip, external_access, rally_address
+
+        return internal_ip, external_ip, external_access, rally_address, my_index
 
     def is_node(self):
         cmd = [
@@ -272,6 +317,7 @@ class CouchbaseServer(object):
 
     def cluster_init(self):
         self.node_init()
+        services = ','.join(self.services)
 
         cmd = [
             "/opt/couchbase/bin/couchbase-cli", "cluster-init",
@@ -286,7 +332,7 @@ class CouchbaseServer(object):
             "--cluster-analytics-ramsize", self.analytics_quota,
             "--cluster-name", self.cluster_name,
             "--index-storage-setting", self.index_mem_opt.name,
-            "--services", ','.join(self.services)
+            "--services", services
         ]
 
         logger.info(f"Creating cluster on node {self.internal_ip}")
@@ -299,10 +345,16 @@ class CouchbaseServer(object):
         self.node_external_ip()
         self.node_change_group()
 
+        try:
+            self.config_data.set('cluster', 'services', services)
+        except configparser.NoSectionError:
+            self.config_data['cluster'] = dict(services=services)
+
         return True
 
     def node_add(self):
         self.node_init()
+        services = ','.join(self.services)
 
         cmd = [
             "/opt/couchbase/bin/couchbase-cli", "server-add",
@@ -312,7 +364,7 @@ class CouchbaseServer(object):
             "--server-add-username", self.username,
             "--server-add-password", self.password,
             "--server-add", self.internal_ip,
-            "--services", ','.join(self.services)
+            "--services", services
         ]
 
         logger.info(f"Adding node {self.internal_ip} to cluster at {self.rally_ip_address}")
@@ -324,6 +376,11 @@ class CouchbaseServer(object):
 
         self.node_external_ip()
         self.node_change_group()
+
+        try:
+            self.config_data.set('cluster', 'services', services)
+        except configparser.NoSectionError:
+            self.config_data['cluster'] = dict(services=services)
 
         return True
 
