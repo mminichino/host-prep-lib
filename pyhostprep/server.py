@@ -484,7 +484,7 @@ class CouchbaseServer(object):
                 time.sleep(wait)
 
     def rebalance(self, retry_count=10, factor=0.5):
-        if self.internal_ip != self.rally_ip_address:
+        if self.internal_ip != NetworkInfo().ip_lookup(self.rally_ip_address):
             logger.info("rebalance: skipping node")
             return True
 

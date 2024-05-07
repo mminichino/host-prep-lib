@@ -50,3 +50,10 @@ class NetworkInfo(object):
             return True
         except socket.error:
             return False
+
+    @staticmethod
+    def ip_lookup(hostname: str):
+        try:
+            return socket.gethostbyname(hostname)
+        except socket.error:
+            return hostname
