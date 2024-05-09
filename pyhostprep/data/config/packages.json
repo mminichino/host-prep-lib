@@ -346,6 +346,52 @@
         "run": "install_libcouchbase_apt.yaml",
         "post": null
       }
+    },
+    "AzureCLI": {
+      "centos|rhel": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "az_cli_dnf.yaml",
+        "post": null
+      },
+      "ubuntu|debian": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "az_cli_apt.yaml",
+        "post": null
+      }
+    },
+    "GCPCLI": {
+      "centos|rhel": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "gcp_cli_dnf.yaml",
+        "post": null
+      },
+      "ubuntu|debian": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "gcp_cli_apt.yaml",
+        "post": null
+      }
+    },
+    "AWSCLI": {
+      "centos|rhel|amzn|rocky|ol|fedora|ubuntu|debian|opensuse-leap|sles": {
+        "requires": [
+          "Base"
+        ],
+        "pre": null,
+        "run": "aws_cli.yaml",
+        "post": null
+      }
     }
   }
 }

@@ -1,0 +1,27 @@
+---
+- hosts: localhost
+  gather_facts: no
+  name: Install AWS CLI
+  tasks:
+    - name: Install Packages
+      ansible.builtin.package:
+        name:
+          - unzip
+    - name: Download Software
+      get_url:
+        url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+        dest: /tmp/awscliv2.zip
+      register: aws_cli_download_bundle
+    - name: Extract Installer
+      unarchive:
+        src: /tmp/awscliv2.zip
+        dest: /tmp
+        copy: no
+        creates: /tmp/aws
+      when: aws_cli_download_bundle.changed
+      register: aws_cli_unarchive_installer
+    - name: Install AWS CLI
+      shell: /tmp/aws/install
+      args:
+        creates: /usr/local/bin/aws
+      when: aws_cli_unarchive_installer.changed

@@ -1,0 +1,28 @@
+---
+- hosts: localhost
+  gather_facts: no
+  name: Install Azure CLI
+  tasks:
+    - name: Install Packages
+      ansible.builtin.package:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+        state: latest
+    - name: Install Key
+      ansible.builtin.apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+        keyring: /etc/apt/trusted.gpg.d/cloud.google.gpg
+    - name: Add Repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/etc/apt/trusted.gpg.d/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main"
+        state: present
+        filename: google-cloud-sdk.list
+    - name: Install Packages
+      ansible.builtin.package:
+        name:
+          - google-cloud-cli
+        state: latest

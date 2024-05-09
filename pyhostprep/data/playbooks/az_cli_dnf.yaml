@@ -1,0 +1,18 @@
+---
+- hosts: localhost
+  gather_facts: no
+  name: Install Azure CLI
+  tasks:
+    - name: Import Key
+      ansible.builtin.rpm_key:
+        state: present
+        key: https://packages.microsoft.com/keys/microsoft.asc
+    - name: Install Repo Package
+      ansible.builtin.dnf:
+        name: "https://packages.microsoft.com/config/rhel/{{ ansible_distribution_major_version }}/packages-microsoft-prod.rpm"
+        state: present
+    - name: Install Packages
+      ansible.builtin.dnf:
+        name:
+          - azure-cli
+        state: latest
