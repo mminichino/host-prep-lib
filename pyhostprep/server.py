@@ -512,17 +512,17 @@ class CouchbaseServer(object):
             logger.info("rebalance: skipping node")
             return True
 
+        if self.community_edition:
+            logger.info("rebalance: skipping rebalance on Community Edition")
+            print("Skipped: Rebalance")
+            return True
+
         if not self.cluster_wait(min_nodes=len(self.ip_list)):
             raise ClusterSetupError("rebalance: not all nodes joined the cluster")
 
-        if self.community_edition:
-            connect_string = f"couchbase://{self.rally_ip_address}"
-        else:
-            connect_string = f"couchbases://{self.rally_ip_address}"
-
         cmd = [
             "/opt/couchbase/bin/couchbase-cli", "rebalance",
-            "--cluster", connect_string,
+            "--cluster", self.rally_ip_address,
             "--username", self.username,
             "--password", self.password,
             "--no-progress-bar"
