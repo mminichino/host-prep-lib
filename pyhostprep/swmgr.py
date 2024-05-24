@@ -36,6 +36,7 @@ class SWMgrCLI(CLI):
         opt_parser.add_argument('-D', '--data_path', dest='data_path', action='store', default='/opt/couchbase/var/lib/couchbase/data')
         opt_parser.add_argument('-S', '--sgw_path', dest='sgw_path', action='store', default='/home/sync_gateway')
         opt_parser.add_argument('-f', '--filename', dest='filename', action='store')
+        opt_parser.add_argument('-C', '--community', dest='community', action='store_true')
 
         command_subparser = self.parser.add_subparsers(dest='command')
         cluster_parser = command_subparser.add_parser('cluster', parents=[opt_parser], add_help=False)
@@ -58,7 +59,8 @@ class SWMgrCLI(CLI):
                           self.options.service_list.split(':') if self.options.service_list and self.options.service_list != 'null' else [],
                           IndexMemoryOption[self.options.index_mem],
                           self.options.group,
-                          self.options.data_path)
+                          self.options.data_path,
+                          self.options.community)
         cbs = CouchbaseServer(sc)
         if self.options.cluster_command == "create":
             logger.info(f"Creating cluster {self.options.name} node")

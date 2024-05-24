@@ -58,6 +58,7 @@ class ServerConfig:
     index_mem_opt: Optional[IndexMemoryOption] = attr.ib(default=IndexMemoryOption.default)
     availability_zone: Optional[str] = attr.ib(default="primary")
     data_path: Optional[str] = attr.ib(default="/opt/couchbase/var/lib/couchbase/data")
+    community_edition: Optional[bool] = attr.ib(default=False)
 
     @property
     def get_values(self):
@@ -78,7 +79,8 @@ class ServerConfig:
                service_list=None,
                index_mem_opt: IndexMemoryOption = IndexMemoryOption.default,
                availability_zone: str = "primary",
-               data_path: str = "/opt/couchbase/var/lib/couchbase/data"):
+               data_path: str = "/opt/couchbase/var/lib/couchbase/data",
+               community_edition: bool = False):
         if host_list is None:
             host_list = []
         return cls(
@@ -91,7 +93,8 @@ class ServerConfig:
             service_list,
             index_mem_opt,
             availability_zone,
-            data_path
+            data_path,
+            community_edition
         )
 
 
@@ -109,6 +112,7 @@ class CouchbaseServer(object):
         self.data_path = config.data_path
         self.index_mem_opt = config.index_mem_opt
         self.availability_zone = config.availability_zone
+        self.community_edition = config.community_edition
 
         try:
             FileManager().make_dir(CONFIG_DIR)
@@ -319,23 +323,40 @@ class CouchbaseServer(object):
         self.node_init()
         services = ','.join(self.services)
 
-        cmd = [
-            "/opt/couchbase/bin/couchbase-cli", "cluster-init",
-            "--cluster", self.rally_ip_address,
-            "--cluster-username", self.username,
-            "--cluster-password", self.password,
-            "--cluster-port", "8091",
-            "--cluster-ramsize", self.data_quota,
-            "--cluster-fts-ramsize", self.fts_quota,
-            "--cluster-index-ramsize", self.index_quota,
-            "--cluster-eventing-ramsize", self.eventing_quota,
-            "--cluster-analytics-ramsize", self.analytics_quota,
-            "--cluster-name", self.cluster_name,
-            "--index-storage-setting", self.index_mem_opt.name,
-            "--services", services
-        ]
+        if self.community_edition:
+            cmd = [
+                "/opt/couchbase/bin/couchbase-cli", "cluster-init",
+                "--cluster", self.rally_ip_address,
+                "--cluster-username", self.username,
+                "--cluster-password", self.password,
+                "--cluster-port", "8091",
+                "--cluster-ramsize", self.data_quota,
+                "--cluster-fts-ramsize", self.fts_quota,
+                "--cluster-index-ramsize", self.index_quota,
+                "--cluster-name", self.cluster_name,
+                "--index-storage-setting", self.index_mem_opt.name,
+                "--services", services
+            ]
+        else:
+            cmd = [
+                "/opt/couchbase/bin/couchbase-cli", "cluster-init",
+                "--cluster", self.rally_ip_address,
+                "--cluster-username", self.username,
+                "--cluster-password", self.password,
+                "--cluster-port", "8091",
+                "--cluster-ramsize", self.data_quota,
+                "--cluster-fts-ramsize", self.fts_quota,
+                "--cluster-index-ramsize", self.index_quota,
+                "--cluster-eventing-ramsize", self.eventing_quota,
+                "--cluster-analytics-ramsize", self.analytics_quota,
+                "--cluster-name", self.cluster_name,
+                "--index-storage-setting", self.index_mem_opt.name,
+                "--services", services
+            ]
 
         logger.info(f"Creating cluster on node {self.internal_ip}")
+        edition = "Community" if self.community_edition else "Enterprise"
+        logger.info(f"Server Edition: {edition}")
 
         try:
             RunShellCommand().cmd_output(cmd, "/var/tmp")
