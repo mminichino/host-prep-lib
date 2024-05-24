@@ -475,6 +475,9 @@ class CouchbaseServer(object):
         return None
 
     def node_change_group(self, retry_count=10, factor=0.5):
+        if self.community_edition:
+            logger.info("Skipping node server group assignment on Community Edition")
+            return True
         current_group = self.get_node_group()
         if current_group == self.availability_zone:
             return True
