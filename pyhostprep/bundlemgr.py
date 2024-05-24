@@ -23,6 +23,7 @@ class BundleMgrCLI(CLI):
     def local_args(self):
         self.parser.add_argument('-b', '--bundles', nargs='+', help='List of bundles to deploy')
         self.parser.add_argument('-V', '--version', action='store', help="Software Version", default="latest")
+        self.parser.add_argument('-C', '--community', action='store_true', help="Software Edition")
 
     def is_time_synced(self):
         return self.host_info.system.is_running("ntp") \
@@ -50,6 +51,11 @@ class BundleMgrCLI(CLI):
             'firewalld_enabled': self.is_firewalld_enabled()
         }
 
+        if self.options.community:
+            enterprise = False
+        else:
+            enterprise = True
+
         for b in self.options.bundles:
             self.op.add(b)
 
@@ -65,17 +71,17 @@ class BundleMgrCLI(CLI):
                     if extra_var == "cbs_download_url":
                         sw = SoftwareManager()
                         version = self.options.version if self.options.version and self.options.version != 'latest' else sw.cbs_latest
-                        url = sw.get_cbs_download(version, self.op)
+                        url = sw.get_cbs_download(version, self.op, enterprise)
                         extra_vars.update({'cbs_download_url': url})
                     elif extra_var == "sgw_download_rpm":
                         sw = SoftwareManager()
                         version = self.options.version if self.options.version and self.options.version != 'latest' else sw.sgw_latest(self.op)
-                        url = sw.get_sgw_rpm(version, self.op.os.machine)
+                        url = sw.get_sgw_rpm(version, self.op.os.machine, enterprise)
                         extra_vars.update({'sgw_download_rpm': url})
                     elif extra_var == "sgw_download_deb":
                         sw = SoftwareManager()
                         version = self.options.version if self.options.version and self.options.version != 'latest' else sw.sgw_latest(self.op)
-                        url = sw.get_sgw_apt(version, self.op.os.machine)
+                        url = sw.get_sgw_apt(version, self.op.os.machine, enterprise)
                         extra_vars.update({'sgw_download_deb': url})
                     elif extra_var == "libcouchbase_repo":
                         sw = SoftwareManager()

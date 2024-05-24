@@ -111,7 +111,7 @@ class SoftwareManager(object):
         return current_releases
 
     @retry()
-    def get_cbs_download(self, release: str, op: SoftwareBundle):
+    def get_cbs_download(self, release: str, op: SoftwareBundle, enterprise: bool = True):
         session = requests.Session()
         retries = Retry(total=60,
                         backoff_factor=0.1,
@@ -123,15 +123,20 @@ class SoftwareManager(object):
         os_name = op.os.os_name
         os_release = op.os.os_major_release
 
+        if enterprise:
+            edition = "enterprise"
+        else:
+            edition = "community"
+
         os_name_str = SoftwareManager.os_aliases.get(os_name, os_name)
         os_release_str = SoftwareManager.os_release_aliases.get(os_release, os_release)
         platform = f"{os_name_str}{os_release_str}"
         for test_platform in [platform, 'linux']:
             if SoftwareManager.pkg_type.get(os_name) == "rpm":
-                file_name = f"couchbase-server-enterprise-{release}-{test_platform}.{arch}.rpm"
+                file_name = f"couchbase-server-{edition}-{release}-{test_platform}.{arch}.rpm"
                 platform_link = f"https://packages.couchbase.com/releases/{release}/{file_name}"
             else:
-                file_name = f"couchbase-server-enterprise_{release}-{test_platform}_{arch}.deb"
+                file_name = f"couchbase-server-{edition}_{release}-{test_platform}_{arch}.deb"
                 platform_link = f"https://packages.couchbase.com/releases/{release}/{file_name}"
             if FileManager().find_file(file_name, TEMP_DIR):
                 return os.path.join(TEMP_DIR, file_name)
@@ -142,12 +147,20 @@ class SoftwareManager(object):
         return None
 
     @staticmethod
-    def get_sgw_rpm(version, arch):
-        return f"http://packages.couchbase.com/releases/couchbase-sync-gateway/{version}/couchbase-sync-gateway-enterprise_{version}_{arch}.rpm"
+    def get_sgw_rpm(version, arch, enterprise: bool = True):
+        if enterprise:
+            edition = "enterprise"
+        else:
+            edition = "community"
+        return f"http://packages.couchbase.com/releases/couchbase-sync-gateway/{version}/couchbase-sync-gateway-{edition}_{version}_{arch}.rpm"
 
     @staticmethod
-    def get_sgw_apt(version, arch):
-        return f"http://packages.couchbase.com/releases/couchbase-sync-gateway/{version}/couchbase-sync-gateway-enterprise_{version}_{arch}.deb"
+    def get_sgw_apt(version, arch, enterprise: bool = True):
+        if enterprise:
+            edition = "enterprise"
+        else:
+            edition = "community"
+        return f"http://packages.couchbase.com/releases/couchbase-sync-gateway/{version}/couchbase-sync-gateway-{edition}_{version}_{arch}.deb"
 
     def get_sgw_versions(self, op: SoftwareBundle):
         sgw_git_release_url = 'https://api.github.com/repos/couchbase/sync_gateway/releases'
