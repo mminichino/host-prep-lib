@@ -221,6 +221,21 @@
         "post": null
       }
     },
+    "GenAppNode": {
+      "centos|rhel|amzn|rocky|ol|fedora|ubuntu|debian|opensuse-leap|sles": {
+        "requires": [
+          "Base",
+          "Chrony",
+          "Firewall",
+          "THP",
+          "Swappiness",
+          "Swap"
+        ],
+        "pre": null,
+        "run": null,
+        "post": null
+      }
+    },
     "CBS": {
       "centos|rhel|amzn|rocky|ol|fedora": {
         "requires": [
