@@ -129,9 +129,9 @@ class SyncGateway(object):
 
         FileManager().set_perms(dest)
 
-    @staticmethod
-    def gateway_wait(retry_count=300, factor=0.1):
-        s = APISession("127.0.0.1", port=4984)
+    def gateway_wait(self, retry_count=300, factor=0.1):
+        ssl = 1 if self.ssl else 0
+        s = APISession("127.0.0.1", port=4984, ssl=ssl)
         for retry_number in range(retry_count + 1):
             try:
                 result = s.api_get("/").json()
