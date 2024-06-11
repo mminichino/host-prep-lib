@@ -151,8 +151,8 @@ class CLI(object):
 
     def init_parser(self):
         self.parser = argparse.ArgumentParser(add_help=False)
-        self.parser.add_argument('-d', '--debug', action='store_true', help="Debug output")
-        self.parser.add_argument('-v', '--verbose', action='store_true', help="Verbose output")
+        self.parser.add_argument('--debug', action='store_true', help="Debug output")
+        self.parser.add_argument('--verbose', action='store_true', help="Verbose output")
 
     def local_args(self):
         pass

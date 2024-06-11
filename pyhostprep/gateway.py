@@ -13,6 +13,7 @@ from pyhostprep.exception import FatalError
 from pyhostprep import get_config_file
 from pyhostprep.util import FileManager
 from pyhostprep.rest import APISession
+from pyhostprep.certificates import CertMgr
 
 logger = logging.getLogger('hostprep.gateway')
 logger.addHandler(logging.NullHandler())
@@ -30,6 +31,7 @@ class GatewayConfig:
     bucket: Optional[str] = attr.ib(default="default")
     root_path: Optional[str] = attr.ib(default="/home/sync_gateway")
     os_username: Optional[str] = attr.ib(default="sync_gateway")
+    use_ssl: Optional[bool] = attr.ib(default=False)
 
     @property
     def get_values(self):
@@ -46,14 +48,16 @@ class GatewayConfig:
                password: str = "password",
                bucket: str = "default",
                root_path: str = "/home/sync_gateway",
-               os_username: str = "sync_gateway"):
+               os_username: str = "sync_gateway",
+               use_ssl: bool = False):
         return cls(
             ip_list,
             username,
             password,
             bucket,
             root_path,
-            os_username
+            os_username,
+            use_ssl
         )
 
 
@@ -67,23 +71,24 @@ class SyncGateway(object):
         self.root_path = config.root_path
         self.os_username = config.os_username
         self.log_dir = os.path.join(self.root_path, "logs")
+        self.ssl = config.use_ssl
 
         self.connect_ip = self.ip_list[0]
 
     def configure(self):
-        sw_version = self.get_version()
-        if sw_version:
-            self.prepare(int(sw_version))
-        else:
-            self.prepare(3)
+        self.prepare()
 
-    def prepare(self, version=3, dest=None):
+    def prepare(self, dest=None):
         if not dest:
             FileManager().make_dir(self.log_dir)
-        if version == 3:
-            self.copy_config_file("sync_gateway_3.json", dest)
+        if self.ssl:
+            key_file = os.path.join(self.root_path, 'privkey.pem')
+            cert_file = os.path.join(self.root_path, 'cert.pem')
+            CertMgr().private_key(key_file)
+            CertMgr().certificate_basic(cert_file, key_file)
+            self.copy_config_file("sync_gateway_ssl.json", dest)
         else:
-            self.copy_config_file("sync_gateway_2.json", dest)
+            self.copy_config_file("sync_gateway_3.json", dest)
 
     def get_version(self):
         cmd = [
