@@ -42,6 +42,7 @@ class SWMgrCLI(CLI):
         opt_parser.add_argument('-A', '--alt_names', dest='alt_names',  nargs='+', action='append')
         opt_parser.add_argument('-H', '--host_cert', dest='host_cert', action='store_true')
         opt_parser.add_argument('-k', '--key_file', dest='key_file', action='store')
+        opt_parser.add_argument('-T', '--tls', dest='tls', action='store_true')
 
         command_subparser = self.parser.add_subparsers(dest='command')
         cluster_parser = command_subparser.add_parser('cluster', parents=[opt_parser], add_help=False)
@@ -86,7 +87,8 @@ class SWMgrCLI(CLI):
                            self.options.username,
                            self.options.password,
                            self.options.bucket,
-                           self.options.sgw_path)
+                           self.options.sgw_path,
+                           use_ssl=self.options.tls)
         sgw = SyncGateway(gc)
         if self.options.gateway_command == "configure":
             if not self.options.filename:
