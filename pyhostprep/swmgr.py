@@ -10,6 +10,7 @@ from pyhostprep.cli import CLI
 from pyhostprep.server import CouchbaseServer, IndexMemoryOption
 from pyhostprep.server import ServerConfig
 from pyhostprep.gateway import GatewayConfig, SyncGateway
+from pyhostprep.certificates import CertMgr
 
 warnings.filterwarnings("ignore")
 logger = logging.getLogger()
@@ -37,6 +38,10 @@ class SWMgrCLI(CLI):
         opt_parser.add_argument('-S', '--sgw_path', dest='sgw_path', action='store', default='/home/sync_gateway')
         opt_parser.add_argument('-f', '--filename', dest='filename', action='store')
         opt_parser.add_argument('-C', '--community', dest='community', action='store_true')
+        opt_parser.add_argument('-d', '--domain', dest='domain_name', action='store')
+        opt_parser.add_argument('-A', '--alt_names', dest='alt_names',  nargs='+', action='append')
+        opt_parser.add_argument('-H', '--host_cert', dest='host_cert', action='store_true')
+        opt_parser.add_argument('-k', '--key_file', dest='key_file', action='store')
 
         command_subparser = self.parser.add_subparsers(dest='command')
         cluster_parser = command_subparser.add_parser('cluster', parents=[opt_parser], add_help=False)
@@ -48,6 +53,10 @@ class SWMgrCLI(CLI):
         gateway_subparser = gateway_parser.add_subparsers(dest='gateway_command')
         gateway_subparser.add_parser('configure', parents=[opt_parser], add_help=False)
         gateway_subparser.add_parser('wait', parents=[opt_parser], add_help=False)
+        cert_parser = command_subparser.add_parser('cert', parents=[opt_parser], add_help=False)
+        cert_subparser = cert_parser.add_subparsers(dest='cert_command')
+        cert_subparser.add_parser('key', parents=[opt_parser], add_help=False)
+        cert_subparser.add_parser('create', parents=[opt_parser], add_help=False)
 
     def cluster_operations(self):
         sc = ServerConfig(self.options.name,
@@ -89,11 +98,32 @@ class SWMgrCLI(CLI):
             logger.info(f"Waiting for Sync Gateway node")
             sgw.gateway_wait()
 
+    def certificate_operations(self):
+        if self.options.alt_names is not None:
+            alt_names = []
+            for names in self.options.alt_names:
+                alt_names.extend(names)
+        else:
+            alt_names = None
+
+        if self.options.cert_command == "key":
+            filename = self.options.filename if self.options.filename else "privkey.pem"
+            CertMgr().private_key(filename)
+        elif self.options.cert_command == "create":
+            filename = self.options.filename if self.options.filename else "cert.pem"
+            key_file = self.options.key_file if self.options.key_file else "privkey.pem"
+            if self.options.host_cert:
+                CertMgr().certificate_hostname(filename, key_file, self.options.domain_name, alt_names)
+            else:
+                CertMgr().certificate_basic(filename, key_file)
+
     def run(self):
         if self.options.command == "cluster":
             self.cluster_operations()
         elif self.options.command == "gateway":
             self.gateway_operations()
+        elif self.options.command == "cert":
+            self.certificate_operations()
 
 
 def main(args=None):
