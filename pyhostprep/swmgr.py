@@ -2,6 +2,7 @@
 ##
 
 import logging
+import os
 import warnings
 import argparse
 import sys
@@ -43,6 +44,7 @@ class SWMgrCLI(CLI):
         opt_parser.add_argument('-H', '--host_cert', dest='host_cert', action='store_true')
         opt_parser.add_argument('-k', '--key_file', dest='key_file', action='store')
         opt_parser.add_argument('-T', '--tls', dest='tls', action='store_true')
+        opt_parser.add_argument('--base64', dest='base64', action='store_true')
 
         command_subparser = self.parser.add_subparsers(dest='command')
         cluster_parser = command_subparser.add_parser('cluster', parents=[opt_parser], add_help=False)
@@ -58,6 +60,7 @@ class SWMgrCLI(CLI):
         cert_subparser = cert_parser.add_subparsers(dest='cert_command')
         cert_subparser.add_parser('key', parents=[opt_parser], add_help=False)
         cert_subparser.add_parser('create', parents=[opt_parser], add_help=False)
+        cert_subparser.add_parser('ca', parents=[opt_parser], add_help=False)
 
     def cluster_operations(self):
         sc = ServerConfig(self.options.name,
@@ -118,6 +121,19 @@ class SWMgrCLI(CLI):
                 CertMgr().certificate_hostname(filename, key_file, self.options.domain_name, alt_names)
             else:
                 CertMgr().certificate_basic(filename, key_file)
+        elif self.options.cert_command == "ca":
+            if self.options.base64:
+                key_encoded, cert_encoded = CertMgr().certificate_ca_base64()
+                print("---- Begin Certificate Key ----")
+                print(key_encoded)
+                print("---- End Certificate Key ----")
+                print("---- Begin Certificate ----")
+                print(cert_encoded)
+                print("---- End Certificate ----")
+            else:
+                key_file = os.path.join(self.options.data_path, "ca.key")
+                cert_file = os.path.join(self.options.data_path, "ca.crt")
+                CertMgr().certificate_ca_files(key_file, cert_file)
 
     def run(self):
         if self.options.command == "cluster":

@@ -1,6 +1,6 @@
 ##
 ##
-
+import base64
 import socket
 import datetime
 from typing import List
@@ -108,3 +108,58 @@ class CertMgr(object):
         cert = certificate.public_bytes(serialization.Encoding.PEM).decode('utf-8')
         with open(filename, 'w') as f:
             f.write(cert)
+
+    @staticmethod
+    def certificate_ca():
+        one_day = datetime.timedelta(1, 0, 0)
+        private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend()
+        )
+        public_key = private_key.public_key()
+
+        cert_name = x509.Name([
+            x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
+            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "California"),
+            x509.NameAttribute(NameOID.LOCALITY_NAME, "Santa Clara"),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Couchbase")
+        ])
+
+        builder = x509.CertificateBuilder()
+        builder = builder.subject_name(cert_name)
+        builder = builder.issuer_name(cert_name)
+        builder = builder.not_valid_before(datetime.datetime.today() - one_day)
+        builder = builder.not_valid_after(datetime.datetime.today() + (one_day * 365 * 10))
+        builder = builder.serial_number(x509.random_serial_number())
+        builder = builder.public_key(public_key)
+        builder = builder.add_extension(
+            x509.BasicConstraints(ca=True, path_length=None), critical=True,
+        )
+        certificate = builder.sign(
+            private_key=private_key, algorithm=hashes.SHA256(),
+            backend=default_backend()
+        )
+
+        key_bytes = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption()
+        )
+
+        cert_bytes = certificate.public_bytes(
+            encoding=serialization.Encoding.PEM,
+        )
+
+        return key_bytes, cert_bytes
+
+    def certificate_ca_base64(self):
+        key_bytes, cert_bytes = self.certificate_ca()
+        return base64.b64encode(key_bytes).decode('utf-8'), base64.b64encode(cert_bytes).decode('utf-8')
+
+    def certificate_ca_files(self, key_file: str, cert_file: str):
+        key_bytes, cert_bytes = self.certificate_ca()
+        with open(key_file, 'w') as f:
+            f.write(key_bytes.decode('utf-8'))
+        with open(cert_file, 'w') as f:
+            f.write(cert_bytes.decode('utf-8'))
