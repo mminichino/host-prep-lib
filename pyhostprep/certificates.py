@@ -109,6 +109,72 @@ class CertMgr(object):
             f.write(cert)
 
     @staticmethod
+    def certificate_standard(cert: str, key: str, subject: str, domain_name: str = None, alt_name: List[str] = None, alt_ip_list: List[str] = None):
+        one_day = datetime.timedelta(1, 0, 0)
+        private_key = load_pem_private_key(key.encode(), None, default_backend())
+        ca_cert = x509.load_pem_x509_certificate(cert.encode(), default_backend())
+
+        cert_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend(),
+        )
+        cert_key_pem = cert_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption()
+        ).decode()
+        cert_public_key = cert_key.public_key()
+
+        cert_name = x509.Name([
+            x509.NameAttribute(NameOID.COMMON_NAME, subject)
+        ])
+
+        builder = x509.CertificateBuilder()
+        builder = builder.subject_name(cert_name)
+        builder = builder.issuer_name(ca_cert.issuer)
+        builder = builder.not_valid_before(datetime.datetime.today() - one_day)
+        builder = builder.not_valid_after(datetime.datetime.today() + (one_day * 365 * 10))
+        builder = builder.serial_number(x509.random_serial_number())
+        builder = builder.public_key(cert_public_key)
+
+        host_names = []
+
+        if alt_name is not None:
+            for name in alt_name:
+                host_names.append(x509.DNSName(name))
+
+        if alt_ip_list is not None:
+            for ip in alt_ip_list:
+                host_names.append(x509.IPAddress(ipaddress.ip_address(ip)))
+
+        if domain_name is not None:
+            host_names.append(x509.DNSName(f"*.{domain_name}"))
+
+        host_names.append(x509.IPAddress(ipaddress.ip_address('127.0.0.1')))
+
+        builder = builder.add_extension(x509.SubjectAlternativeName(host_names), critical=False)
+        builder = builder.add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+        builder = builder.add_extension(x509.SubjectKeyIdentifier.from_public_key(cert_public_key), critical=False)
+        builder = builder.add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(cert_public_key), critical=False)
+        builder = builder.add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
+        builder = builder.add_extension(x509.KeyUsage(
+            digital_signature=True,
+            key_encipherment=True,
+            data_encipherment=False,
+            content_commitment=False,
+            key_agreement=False,
+            key_cert_sign=False,
+            crl_sign=False,
+            encipher_only=False,
+            decipher_only=False), critical=True)
+
+        certificate = builder.sign(private_key=private_key, algorithm=hashes.SHA256(), backend=default_backend())
+
+        cert_pem = certificate.public_bytes(serialization.Encoding.PEM).decode()
+        return cert_key_pem, cert_pem
+
+    @staticmethod
     def certificate_basic(filename: str, private_key: str):
         one_day = datetime.timedelta(1, 0, 0)
         with open(private_key, 'r') as pem_in:

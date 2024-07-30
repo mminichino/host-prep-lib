@@ -311,24 +311,75 @@ class CouchbaseServer(object):
         return True
 
     def cluster_ca_load(self):
-        FileManager().make_dir(self.ca_path, "couchbase", mode=0o700)
-        key_file = os.path.join(os.path.dirname(self.ca_path), "ca.key")
-        cert_file = os.path.join(self.ca_path, "ca.pem")
-        CertMgr().certificate_ca_from_key(self.private_key, key_file, cert_file)
-        FileManager().set_perms(key_file, "couchbase", mode=0o700)
-        FileManager().set_perms(cert_file, "couchbase", mode=0o700)
+        home_dir = FileManager().get_user_home()
+        ca_key = os.path.join(home_dir, "ca.key")
+        ca_cert = os.path.join(home_dir, "ca.pem")
+        if os.path.exists(ca_key) and os.path.exists(ca_cert):
+            ca_cert_file = os.path.join(self.ca_path, "ca.pem")
+            ca_key_file = os.path.join(os.path.dirname(self.ca_path), "ca.key")
+            FileManager().make_dir(self.ca_path, "couchbase", "couchbase", mode=0o700)
+            FileManager().copy_file(ca_key, ca_key_file, "couchbase", "couchbase", mode=0o600)
+            FileManager().copy_file(ca_cert, ca_cert_file, "couchbase", "couchbase", mode=0o600)
 
-        api = APISession(self.username, self.password)
-        api.set_host(self.internal_ip, 0, 8091)
+            api = APISession(self.username, self.password)
+            api.set_host(self.internal_ip, 0, 8091)
 
-        logger.info(f"Loading cluster certificate authority")
+            logger.info(f"Loading cluster certificate authority")
 
-        response = api.api_post("/node/controller/loadTrustedCAs", "")
-        result = response.json()
+            response = api.api_empty_post("/node/controller/loadTrustedCAs")
+            result = response.json()
 
-        if not isinstance(result, list) or result[0].get("id") != 1:
-            logger.error(f"Failed to load CA: response: {response.json()}")
-            raise ClusterSetupError(f"CA load failed")
+            if not isinstance(result, list) or result[0].get("id") != 1:
+                logger.error(f"Failed to load CA: response: {response.json()}")
+                raise ClusterSetupError(f"CA load failed")
+
+        return True
+
+    def host_cert_load(self):
+        home_dir = FileManager().get_user_home()
+        ca_key = os.path.join(home_dir, "ca.key")
+        ca_cert = os.path.join(home_dir, "ca.pem")
+        if os.path.exists(ca_key) and os.path.exists(ca_cert):
+            FileManager().make_dir(self.ca_path, "couchbase", "couchbase", mode=0o700)
+
+            with open(ca_cert, 'r') as f:
+                ca_cert_pem = f.read()
+            with open(ca_key, 'r') as f:
+                ca_key_pem = f.read()
+
+            name_alt = []
+            ip_alt = []
+            if not self.internal_ip.split('.')[-1].isalpha():
+                ip_alt.append(self.internal_ip)
+            else:
+                name_alt.append(self.internal_ip)
+
+            if self.external_ip:
+                if not self.external_ip.split('.')[-1].isalpha():
+                    ip_alt.append(self.external_ip)
+                else:
+                    name_alt.append(self.external_ip)
+
+            logger.info(f"Generating node certificate")
+
+            node_key, node_cert = CertMgr.certificate_standard(ca_cert_pem, ca_key_pem, "Couchbase Server", alt_name=name_alt, alt_ip_list=ip_alt)
+
+            node_cert_file = os.path.join(os.path.dirname(self.ca_path), "chain.pem")
+            node_key_file = os.path.join(os.path.dirname(self.ca_path), "pkey.key")
+
+            FileManager().write_file(node_key, node_key_file, "couchbase", "couchbase", mode=0o700)
+            FileManager().write_file(node_cert, node_cert_file, "couchbase", "couchbase", mode=0o700)
+
+            api = APISession(self.username, self.password)
+            api.set_host(self.internal_ip, 0, 8091)
+
+            logger.info(f"Loading node certificate")
+
+            try:
+                api.api_empty_post("/node/controller/reloadCertificate")
+            except Exception as err:
+                logger.error(f"Failed to load node cert: {err}")
+                raise ClusterSetupError(f"Node cert load failed: {err}")
 
         return True
 
@@ -341,15 +392,25 @@ class CouchbaseServer(object):
         if not isinstance(result, list):
             raise ClusterSetupError(f"CA fetch invalid response: response: {result}")
 
-        if len(result) != 2:
+        if len(result) < 2:
             raise ClusterSetupError(f"CA fetch invalid number of certificates (expecting 2, got {len(result)}): response: {result}")
 
         certificate = result[1].get("pem")
 
         return certificate
 
-    def node_cert_load(self):
-        pass
+    def cert_wait(self, op_retry=15, factor=0.5):
+        for retry_number in range(op_retry):
+            try:
+                self.cluster_ca_get()
+            except Exception as err:
+                n_retry = retry_number + 1
+                if n_retry == op_retry:
+                    raise ClusterSetupError(f"Cert check failed on {self.internal_ip}: {err}")
+                logger.info(f"Retrying cert check on {self.internal_ip}")
+                wait = factor
+                wait *= n_retry
+                time.sleep(wait)
 
     def node_init(self):
         if self.is_node():
@@ -422,8 +483,9 @@ class CouchbaseServer(object):
         except RCNotZero as err:
             raise ClusterSetupError(f"Cluster init failed: {err}")
 
-        if self.private_key:
-            self.cluster_ca_load()
+        self.cluster_ca_load()
+        self.cert_wait()
+        self.host_cert_load()
         self.node_change_group()
 
         try:
@@ -455,6 +517,8 @@ class CouchbaseServer(object):
         except RCNotZero as err:
             raise ClusterSetupError(f"Node add failed: {err}")
 
+        self.cert_wait()
+        self.host_cert_load()
         self.node_change_group()
 
         try:

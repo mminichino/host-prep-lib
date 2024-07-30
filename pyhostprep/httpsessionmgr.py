@@ -298,6 +298,20 @@ class APISession(object):
         self._response = response.text
         return self
 
+    def api_empty_post(self, endpoint):
+        response = self.session.post(self.url_prefix + endpoint,
+                                     auth=self.auth_class,
+                                     verify=False,
+                                     timeout=self.timeout)
+
+        try:
+            self.check_status_code(response.status_code)
+        except Exception as err:
+            raise APIError(err, response.text, response.status_code) from err
+
+        self._response = response.text
+        return self
+
     def api_put(self, endpoint, body):
         url = self.url_prefix + endpoint
         logger.debug(f"Put URL: {url}")
