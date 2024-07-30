@@ -10,7 +10,8 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_der_private_key
+from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_der_private_key, BestAvailableEncryption
+from cryptography.hazmat.primitives.serialization.pkcs12 import serialize_key_and_certificates
 from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID
 
 
@@ -173,6 +174,70 @@ class CertMgr(object):
 
         cert_pem = certificate.public_bytes(serialization.Encoding.PEM).decode()
         return cert_key_pem, cert_pem
+
+    @staticmethod
+    def certificate_user(cert_file: str, key_file: str, password: str, username: str = None, email: str = None):
+        with open(cert_file, 'r') as f:
+            cert = f.read()
+        with open(key_file, 'r') as f:
+            key = f.read()
+
+        one_day = datetime.timedelta(1, 0, 0)
+        private_key = load_pem_private_key(key.encode(), None, default_backend())
+        ca_cert = x509.load_pem_x509_certificate(cert.encode(), default_backend())
+
+        cert_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend(),
+        )
+        cert_public_key = cert_key.public_key()
+
+        if username is not None:
+            subject = username
+        else:
+            subject = "clientuser"
+
+        cert_name = x509.Name([
+            x509.NameAttribute(NameOID.COMMON_NAME, subject)
+        ])
+
+        builder = x509.CertificateBuilder()
+        builder = builder.subject_name(cert_name)
+        builder = builder.issuer_name(ca_cert.issuer)
+        builder = builder.not_valid_before(datetime.datetime.today() - one_day)
+        builder = builder.not_valid_after(datetime.datetime.today() + (one_day * 365 * 10))
+        builder = builder.serial_number(x509.random_serial_number())
+        builder = builder.public_key(cert_public_key)
+
+        alt_names = []
+        if email is not None:
+            alt_names.append(x509.RFC822Name(email))
+            builder = builder.add_extension(x509.SubjectAlternativeName(alt_names), critical=False)
+
+        builder = builder.add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+        builder = builder.add_extension(x509.SubjectKeyIdentifier.from_public_key(cert_public_key), critical=False)
+        builder = builder.add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(cert_public_key), critical=False)
+        builder = builder.add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.CLIENT_AUTH]), critical=False)
+        builder = builder.add_extension(x509.KeyUsage(
+            digital_signature=True,
+            key_encipherment=False,
+            data_encipherment=False,
+            content_commitment=False,
+            key_agreement=False,
+            key_cert_sign=False,
+            crl_sign=False,
+            encipher_only=False,
+            decipher_only=False), critical=True)
+
+        certificate = builder.sign(private_key=private_key, algorithm=hashes.SHA256(), backend=default_backend())
+
+        p12 = serialize_key_and_certificates(subject.encode(), cert_key, certificate, None, BestAvailableEncryption(password.encode()))
+
+        cert_file_name = f"{subject}.p12"
+        print(f"Writing PKCS12 file {cert_file_name}")
+        with open(cert_file_name, 'wb') as f:
+            f.write(p12)
 
     @staticmethod
     def certificate_basic(filename: str, private_key: str):

@@ -43,6 +43,7 @@ class SWMgrCLI(CLI):
         opt_parser.add_argument('-A', '--alt_names', dest='alt_names',  nargs='+', action='append')
         opt_parser.add_argument('-H', '--host_cert', dest='host_cert', action='store_true')
         opt_parser.add_argument('-k', '--key_file', dest='key_file', action='store')
+        opt_parser.add_argument('-c', '--cert_file', dest='cert_file', action='store')
         opt_parser.add_argument('-K', '--private_key', dest='private_key', action='store')
         opt_parser.add_argument('-T', '--tls', dest='tls', action='store_true')
         opt_parser.add_argument('--base64', dest='base64', action='store_true')
@@ -54,6 +55,7 @@ class SWMgrCLI(CLI):
         action_subparser.add_parser('rebalance', parents=[opt_parser], add_help=False)
         action_subparser.add_parser('ca_cert', parents=[opt_parser], add_help=False)
         action_subparser.add_parser('node_cert', parents=[opt_parser], add_help=False)
+        action_subparser.add_parser('cert_auth', parents=[opt_parser], add_help=False)
         action_subparser.add_parser('wait', parents=[opt_parser], add_help=False)
         gateway_parser = command_subparser.add_parser('gateway', parents=[opt_parser], add_help=False)
         gateway_subparser = gateway_parser.add_subparsers(dest='gateway_command')
@@ -63,6 +65,7 @@ class SWMgrCLI(CLI):
         cert_subparser = cert_parser.add_subparsers(dest='cert_command')
         cert_subparser.add_parser('key', parents=[opt_parser], add_help=False)
         cert_subparser.add_parser('create', parents=[opt_parser], add_help=False)
+        cert_subparser.add_parser('user', parents=[opt_parser], add_help=False)
         cert_subparser.add_parser('ca', parents=[opt_parser], add_help=False)
 
     def cluster_operations(self):
@@ -91,6 +94,9 @@ class SWMgrCLI(CLI):
         elif self.options.cluster_command == "node_cert":
             logger.info(f"Node certificate actions on {self.options.name}")
             cbs.node_cert_setup()
+        elif self.options.cluster_command == "cert_auth":
+            logger.info(f"Cert auth setup on {self.options.name}")
+            cbs.cluster_cert_auth_setup()
         elif self.options.cluster_command == "wait":
             logger.info(f"Waiting for cluster availability {self.options.name}")
             cbs.cluster_wait()
@@ -131,6 +137,8 @@ class SWMgrCLI(CLI):
                 CertMgr().certificate_hostname(filename, key_file, self.options.domain_name, alt_names)
             else:
                 CertMgr().certificate_basic(filename, key_file)
+        elif self.options.cert_command == "user":
+            CertMgr().certificate_user(self.options.cert_file, self.options.key_file, self.options.password, self.options.username)
         elif self.options.cert_command == "ca":
             if self.options.base64:
                 key_encoded, cert_encoded = CertMgr().certificate_ca_base64()

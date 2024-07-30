@@ -8,6 +8,7 @@ import psutil
 import logging
 import socket
 import time
+import json
 import configparser
 from pathlib import Path
 from functools import cmp_to_key
@@ -436,6 +437,50 @@ class CouchbaseServer(object):
             return True
 
         self.host_cert_load()
+
+    def cluster_cert_auth_setup(self):
+        if self.internal_ip != NetworkInfo().ip_lookup(self.rally_ip_address):
+            logger.info("cert auth: skipping node")
+            return True
+
+        if self.community_edition:
+            logger.info("cert auth: skipping rebalance on Community Edition")
+            print("Skipped: cert auth setup")
+            return True
+
+        parameters = {
+            "state": "enable",
+            "prefixes": [
+                {
+                    "path": "subject.cn",
+                    "prefix": "",
+                    "delimiter": "."
+                },
+                {
+                    "path": "san.email",
+                    "prefix": "",
+                    "delimiter": "@"
+                }
+            ]
+        }
+
+        with open('/var/tmp/mtls.json', 'w') as f:
+            json.dump(parameters, f)
+
+        cmd = [
+            "/opt/couchbase/bin/couchbase-cli", "ssl-manage",
+            "--cluster", self.rally_ip_address,
+            "--username", self.username,
+            "--password", self.password,
+            "--set-client-auth", "/var/tmp/mtls.json"
+        ]
+
+        try:
+            RunShellCommand().cmd_output(cmd, "/var/tmp")
+        except RCNotZero as err:
+            raise ClusterSetupError(f"cert auth setup failed: {err}")
+
+        return True
 
     def node_init(self):
         if self.is_node():
