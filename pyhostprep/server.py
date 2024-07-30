@@ -400,17 +400,42 @@ class CouchbaseServer(object):
         return certificate
 
     def cert_wait(self, op_retry=15, factor=0.5):
-        for retry_number in range(op_retry):
-            try:
-                self.cluster_ca_get()
-            except Exception as err:
-                n_retry = retry_number + 1
-                if n_retry == op_retry:
-                    raise ClusterSetupError(f"Cert check failed on {self.internal_ip}: {err}")
-                logger.info(f"Retrying cert check on {self.internal_ip}")
-                wait = factor
-                wait *= n_retry
-                time.sleep(wait)
+        home_dir = FileManager().get_user_home()
+        ca_key = os.path.join(home_dir, "ca.key")
+        ca_cert = os.path.join(home_dir, "ca.pem")
+        if os.path.exists(ca_key) and os.path.exists(ca_cert):
+            for retry_number in range(op_retry):
+                try:
+                    self.cluster_ca_get()
+                except Exception as err:
+                    n_retry = retry_number + 1
+                    if n_retry == op_retry:
+                        raise ClusterSetupError(f"Cert check failed on {self.internal_ip}: {err}")
+                    logger.info(f"Retrying cert check on {self.internal_ip}")
+                    wait = factor
+                    wait *= n_retry
+                    time.sleep(wait)
+
+    def cluster_ca_setup(self):
+        if self.internal_ip != NetworkInfo().ip_lookup(self.rally_ip_address):
+            logger.info("ca setup: skipping node")
+            return True
+
+        if self.community_edition:
+            logger.info("ca setup: skipping ca setup on Community Edition")
+            print("Skipped: ca setup")
+            return True
+
+        self.cluster_ca_load()
+        self.cert_wait()
+
+    def node_cert_setup(self):
+        if self.community_edition:
+            logger.info("rebalance: skipping cert setup on Community Edition")
+            print("Skipped: node cert setup")
+            return True
+
+        self.host_cert_load()
 
     def node_init(self):
         if self.is_node():
@@ -483,9 +508,6 @@ class CouchbaseServer(object):
         except RCNotZero as err:
             raise ClusterSetupError(f"Cluster init failed: {err}")
 
-        self.cluster_ca_load()
-        self.cert_wait()
-        self.host_cert_load()
         self.node_change_group()
 
         try:
@@ -517,8 +539,6 @@ class CouchbaseServer(object):
         except RCNotZero as err:
             raise ClusterSetupError(f"Node add failed: {err}")
 
-        self.cert_wait()
-        self.host_cert_load()
         self.node_change_group()
 
         try:

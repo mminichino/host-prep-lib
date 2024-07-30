@@ -52,6 +52,8 @@ class SWMgrCLI(CLI):
         action_subparser = cluster_parser.add_subparsers(dest='cluster_command')
         action_subparser.add_parser('create', parents=[opt_parser], add_help=False)
         action_subparser.add_parser('rebalance', parents=[opt_parser], add_help=False)
+        action_subparser.add_parser('ca_cert', parents=[opt_parser], add_help=False)
+        action_subparser.add_parser('node_cert', parents=[opt_parser], add_help=False)
         action_subparser.add_parser('wait', parents=[opt_parser], add_help=False)
         gateway_parser = command_subparser.add_parser('gateway', parents=[opt_parser], add_help=False)
         gateway_subparser = gateway_parser.add_subparsers(dest='gateway_command')
@@ -83,6 +85,12 @@ class SWMgrCLI(CLI):
         elif self.options.cluster_command == "rebalance":
             logger.info(f"Balancing cluster {self.options.name}")
             cbs.rebalance()
+        elif self.options.cluster_command == "ca_cert":
+            logger.info(f"CA setup actions on {self.options.name}")
+            cbs.cluster_ca_setup()
+        elif self.options.cluster_command == "node_cert":
+            logger.info(f"Node certificate actions on {self.options.name}")
+            cbs.node_cert_setup()
         elif self.options.cluster_command == "wait":
             logger.info(f"Waiting for cluster availability {self.options.name}")
             cbs.cluster_wait()
