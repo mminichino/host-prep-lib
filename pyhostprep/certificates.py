@@ -1,7 +1,8 @@
 ##
 ##
+
 import base64
-import socket
+import ipaddress
 import datetime
 from typing import List
 from cryptography import x509
@@ -9,8 +10,8 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.serialization import load_pem_private_key
-from cryptography.x509.oid import NameOID
+from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_der_private_key
+from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID
 
 
 class CertMgr(object):
@@ -23,7 +24,7 @@ class CertMgr(object):
         private_key = rsa.generate_private_key(
             public_exponent=65537,
             key_size=size,
-            backend=default_backend()
+            backend=default_backend(),
         )
         pem = private_key.private_bytes(
             encoding=serialization.Encoding.PEM,
@@ -34,7 +35,21 @@ class CertMgr(object):
             f.write(pem)
 
     @staticmethod
-    def certificate_hostname(filename: str, private_key: str, domain_name: str = None, alt_name: List[str] = None):
+    def private_key_encoded(size=2048):
+        private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=size,
+            backend=default_backend(),
+        )
+        pem = private_key.private_bytes(
+            encoding=serialization.Encoding.DER,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption()
+        )
+        return base64.b64encode(pem).decode()
+
+    @staticmethod
+    def certificate_hostname(filename: str, private_key: str, domain_name: str = None, alt_name: List[str] = None, alt_ip_list: List[str] = None):
         one_day = datetime.timedelta(1, 0, 0)
         with open(private_key, 'r') as pem_in:
             privkey = pem_in.read()
@@ -62,17 +77,30 @@ class CertMgr(object):
             for name in alt_name:
                 host_names.append(x509.DNSName(name))
 
+        if alt_ip_list is not None:
+            for ip in alt_ip_list:
+                host_names.append(x509.IPAddress(ipaddress.ip_address(ip)))
+
         if domain_name is not None:
             host_names.append(x509.DNSName(f"*.{domain_name}"))
 
-        host_names.extend([
-            x509.DNSName(socket.gethostname()),
-            x509.DNSName('127.0.0.1'),
-            x509.DNSName('localhost')
-        ])
+        host_names.append(x509.IPAddress(ipaddress.ip_address('127.0.0.1')))
 
-        builder = builder.add_extension(x509.SubjectAlternativeName(host_names), critical=False)
+        builder = builder.add_extension(x509.SubjectAlternativeName(host_names), critical=True)
         builder = builder.add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+        builder = builder.add_extension(x509.SubjectKeyIdentifier.from_public_key(public_key), critical=True)
+        builder = builder.add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(public_key), critical=True)
+        builder = builder.add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=True)
+        builder = builder.add_extension(x509.KeyUsage(
+            digital_signature=True,
+            key_encipherment=True,
+            data_encipherment=False,
+            content_commitment=False,
+            key_agreement=False,
+            key_cert_sign=False,
+            crl_sign=False,
+            encipher_only=False,
+            decipher_only=False), critical=True)
 
         certificate = builder.sign(private_key=private_key, algorithm=hashes.SHA256(), backend=default_backend())
 
@@ -110,13 +138,16 @@ class CertMgr(object):
             f.write(cert)
 
     @staticmethod
-    def certificate_ca():
+    def certificate_ca(key: str = None):
         one_day = datetime.timedelta(1, 0, 0)
-        private_key = rsa.generate_private_key(
-            public_exponent=65537,
-            key_size=2048,
-            backend=default_backend()
-        )
+        if key is None:
+            private_key = rsa.generate_private_key(
+                public_exponent=65537,
+                key_size=2048,
+                backend=default_backend()
+            )
+        else:
+            private_key = load_der_private_key(base64.b64decode(key), None, default_backend())
         public_key = private_key.public_key()
 
         cert_name = x509.Name([
@@ -159,6 +190,13 @@ class CertMgr(object):
 
     def certificate_ca_files(self, key_file: str, cert_file: str):
         key_bytes, cert_bytes = self.certificate_ca()
+        with open(key_file, 'w') as f:
+            f.write(key_bytes.decode('utf-8'))
+        with open(cert_file, 'w') as f:
+            f.write(cert_bytes.decode('utf-8'))
+
+    def certificate_ca_from_key(self, key: str, key_file: str, cert_file: str):
+        key_bytes, cert_bytes = self.certificate_ca(key)
         with open(key_file, 'w') as f:
             f.write(key_bytes.decode('utf-8'))
         with open(cert_file, 'w') as f:

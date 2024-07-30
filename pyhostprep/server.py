@@ -19,6 +19,9 @@ from pyhostprep.network import NetworkInfo
 from pyhostprep.command import RunShellCommand, RCNotZero
 from pyhostprep.exception import FatalError
 from pyhostprep.util import FileManager
+from pyhostprep.osfamily import OSFamily
+from pyhostprep.osinfo import OSRelease
+from pyhostprep.certificates import CertMgr
 
 logger = logging.getLogger('hostprep.server')
 logger.addHandler(logging.NullHandler())
@@ -59,6 +62,7 @@ class ServerConfig:
     availability_zone: Optional[str] = attr.ib(default="primary")
     data_path: Optional[str] = attr.ib(default="/opt/couchbase/var/lib/couchbase/data")
     community_edition: Optional[bool] = attr.ib(default=False)
+    private_key: Optional[str] = attr.ib(default=None)
 
     @property
     def get_values(self):
@@ -80,7 +84,8 @@ class ServerConfig:
                index_mem_opt: IndexMemoryOption = IndexMemoryOption.default,
                availability_zone: str = "primary",
                data_path: str = "/opt/couchbase/var/lib/couchbase/data",
-               community_edition: bool = False):
+               community_edition: bool = False,
+               private_key: str = None):
         if host_list is None:
             host_list = []
         return cls(
@@ -94,7 +99,8 @@ class ServerConfig:
             index_mem_opt,
             availability_zone,
             data_path,
-            community_edition
+            community_edition,
+            private_key
         )
 
 
@@ -113,6 +119,16 @@ class CouchbaseServer(object):
         self.index_mem_opt = config.index_mem_opt
         self.availability_zone = config.availability_zone
         self.community_edition = config.community_edition
+        self.private_key = config.private_key if config.private_key and config.private_key != 'null' else None
+
+        if OSRelease().family == OSFamily.LINUX:
+            self.ca_path = r"/opt/couchbase/var/lib/couchbase/inbox/CA"
+        elif OSRelease().family == OSFamily.WINDOWS:
+            self.ca_path = r"C:\Program Files\couchbase\server\var\lib\couchbase\inbox\CA"
+        elif OSRelease().family == OSFamily.MACOS:
+            self.ca_path = r"/Applications/Couchbase Server.app/Contents/Resources/couchbase-core/var/lib/couchbase/inbox/CA"
+        else:
+            raise ClusterSetupError(f"Unknown OS type")
 
         try:
             FileManager().make_dir(CONFIG_DIR)
@@ -294,6 +310,47 @@ class CouchbaseServer(object):
 
         return True
 
+    def cluster_ca_load(self):
+        FileManager().make_dir(self.ca_path, "couchbase", mode=0o700)
+        key_file = os.path.join(os.path.dirname(self.ca_path), "ca.key")
+        cert_file = os.path.join(self.ca_path, "ca.pem")
+        CertMgr().certificate_ca_from_key(self.private_key, key_file, cert_file)
+        FileManager().set_perms(key_file, "couchbase", mode=0o700)
+        FileManager().set_perms(cert_file, "couchbase", mode=0o700)
+
+        api = APISession(self.username, self.password)
+        api.set_host(self.internal_ip, 0, 8091)
+
+        logger.info(f"Loading cluster certificate authority")
+
+        response = api.api_post("/node/controller/loadTrustedCAs", "")
+        result = response.json()
+
+        if not isinstance(result, list) or result[0].get("id") != 1:
+            logger.error(f"Failed to load CA: response: {response.json()}")
+            raise ClusterSetupError(f"CA load failed")
+
+        return True
+
+    def cluster_ca_get(self):
+        api = APISession(self.username, self.password)
+        api.set_host(self.internal_ip, 0, 8091)
+        response = api.api_get("/pools/default/trustedCAs")
+        result = response.json()
+
+        if not isinstance(result, list):
+            raise ClusterSetupError(f"CA fetch invalid response: response: {result}")
+
+        if len(result) != 2:
+            raise ClusterSetupError(f"CA fetch invalid number of certificates (expecting 2, got {len(result)}): response: {result}")
+
+        certificate = result[1].get("pem")
+
+        return certificate
+
+    def node_cert_load(self):
+        pass
+
     def node_init(self):
         if self.is_node():
             return True
@@ -316,6 +373,8 @@ class CouchbaseServer(object):
             RunShellCommand().cmd_output(cmd, "/var/tmp")
         except RCNotZero as err:
             raise ClusterSetupError(f"Node init failed: {err}")
+
+        self.node_external_ip()
 
         return True
 
@@ -363,7 +422,8 @@ class CouchbaseServer(object):
         except RCNotZero as err:
             raise ClusterSetupError(f"Cluster init failed: {err}")
 
-        self.node_external_ip()
+        if self.private_key:
+            self.cluster_ca_load()
         self.node_change_group()
 
         try:
@@ -395,7 +455,6 @@ class CouchbaseServer(object):
         except RCNotZero as err:
             raise ClusterSetupError(f"Node add failed: {err}")
 
-        self.node_external_ip()
         self.node_change_group()
 
         try:
@@ -411,7 +470,7 @@ class CouchbaseServer(object):
 
         cmd = [
             "/opt/couchbase/bin/couchbase-cli", "setting-alternate-address",
-            "--cluster", self.rally_ip_address,
+            "--cluster", self.internal_ip,
             "--username", self.username,
             "--password", self.password,
             "--set",

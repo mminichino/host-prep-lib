@@ -4,6 +4,7 @@
 import csv
 import os
 import plistlib
+from pyhostprep.osfamily import OSFamily
 
 
 class OSRelease(object):
@@ -75,3 +76,14 @@ class OSRelease(object):
     @property
     def machine(self):
         return self.arch
+
+    @property
+    def family(self):
+        if os.path.exists(self.os_release):
+            return OSFamily.LINUX
+        elif os.path.exists(self.macos_release):
+            return OSFamily.MACOS
+        elif os.name == 'nt':
+            return OSFamily.WINDOWS
+        else:
+            return OSFamily.UNKNOWN
