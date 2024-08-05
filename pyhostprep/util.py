@@ -3,6 +3,7 @@
 
 import os
 import glob
+import getpass
 from pwd import getpwnam
 from grp import getgrnam
 from shutil import copyfile
@@ -78,7 +79,10 @@ class FileManager(object):
 
     @staticmethod
     def get_user_home():
-        username = os.getlogin()
+        try:
+            username = os.getlogin()
+        except OSError:
+            username = getpass.getuser()
         p = PosixPath(f"~{username}")
         return str(p.expanduser().absolute())
 
