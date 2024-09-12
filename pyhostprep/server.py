@@ -64,6 +64,7 @@ class ServerConfig:
     data_path: Optional[str] = attr.ib(default="/opt/couchbase/var/lib/couchbase/data")
     community_edition: Optional[bool] = attr.ib(default=False)
     private_key: Optional[str] = attr.ib(default=None)
+    options: Optional[List[str]] = attr.ib(default=[])
 
     @property
     def get_values(self):
@@ -86,7 +87,8 @@ class ServerConfig:
                availability_zone: str = "primary",
                data_path: str = "/opt/couchbase/var/lib/couchbase/data",
                community_edition: bool = False,
-               private_key: str = None):
+               private_key: str = None,
+               options: List[str] = None):
         if host_list is None:
             host_list = []
         return cls(
@@ -101,7 +103,8 @@ class ServerConfig:
             availability_zone,
             data_path,
             community_edition,
-            private_key
+            private_key,
+            options if options else []
         )
 
 
@@ -121,6 +124,10 @@ class CouchbaseServer(object):
         self.availability_zone = config.availability_zone
         self.community_edition = config.community_edition
         self.private_key = config.private_key if config.private_key and config.private_key != 'null' else None
+        self.options = config.options
+
+        if "memopt" in self.options:
+            self.index_mem_opt = IndexMemoryOption.memopt
 
         if OSRelease().family == OSFamily.LINUX:
             self.ca_path = r"/opt/couchbase/var/lib/couchbase/inbox/CA"
@@ -210,8 +217,8 @@ class CouchbaseServer(object):
         total_mem = int(host_mem.total / (1024 * 1024))
         _eventing_mem = 256
         _fts_mem = 2048
-        if self.index_mem_opt == 0:
-            _index_mem = 512
+        if self.index_mem_opt.name == "memopt":
+            _index_mem = 2048
         else:
             _index_mem = 1024
         _analytics_mem = 1024

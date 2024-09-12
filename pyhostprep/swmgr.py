@@ -45,6 +45,7 @@ class SWMgrCLI(CLI):
         opt_parser.add_argument('-k', '--key_file', dest='key_file', action='store')
         opt_parser.add_argument('-c', '--cert_file', dest='cert_file', action='store')
         opt_parser.add_argument('-K', '--private_key', dest='private_key', action='store')
+        opt_parser.add_argument('-o', '--options', dest='options', action='store')
         opt_parser.add_argument('-T', '--tls', dest='tls', action='store_true')
         opt_parser.add_argument('--base64', dest='base64', action='store_true')
 
@@ -80,7 +81,8 @@ class SWMgrCLI(CLI):
                           self.options.group,
                           self.options.data_path,
                           self.options.community,
-                          self.options.private_key if self.options.private_key else 'null')
+                          self.options.private_key if self.options.private_key else 'null',
+                          self.options.options.split(',') if self.options.options else [])
         cbs = CouchbaseServer(sc)
         if self.options.cluster_command == "create":
             logger.info(f"Creating cluster {self.options.name} node")
