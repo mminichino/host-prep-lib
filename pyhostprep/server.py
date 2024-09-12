@@ -215,47 +215,46 @@ class CouchbaseServer(object):
     def get_mem_config(self):
         host_mem = psutil.virtual_memory()
         total_mem = int(host_mem.total / (1024 * 1024))
-        _eventing_mem = 256
-        _fts_mem = 2048
-        if self.index_mem_opt.name == "memopt":
-            _index_mem = 2048
-        else:
-            _index_mem = 1024
-        _analytics_mem = 1024
-        _data_mem = 2048
 
         os_pool = int(total_mem * 0.3)
         reservation = 2048 if os_pool < 2048 else 4096 if os_pool > 4096 else os_pool
-        
-        if "eventing" in self.services:
-            reservation += _eventing_mem
-        if "fts" in self.services:
-            reservation += _fts_mem
-        if "index" in self.services:
-            reservation += _index_mem
 
         memory_pool = total_mem - reservation
 
-        if "analytics" in self.services and "data" in self.services:
-            analytics_pool = int(memory_pool / 5)
-            analytics_quota = analytics_pool if analytics_pool > _analytics_mem else _analytics_mem
-        elif "analytics" in self.services:
-            analytics_quota = memory_pool
-        else:
-            analytics_quota = _analytics_mem
+        service_count = len(self.services)
+        if "query" in self.services and len(self.services) > 1:
+            service_count -= 1
 
-        if "data" in self.services and "analytics" in self.services:
-            data_quota = memory_pool - analytics_quota
-        elif "data" in self.services:
-            data_quota = memory_pool
+        if "eventing" in self.services:
+            _eventing_mem = int(memory_pool / service_count)
         else:
-            data_quota = _data_mem
+            _eventing_mem = 256
+
+        if "fts" in self.services:
+            _fts_mem = int(memory_pool / service_count)
+        else:
+            _fts_mem = 256
+
+        if "index" in self.services:
+            _index_mem = int(memory_pool / service_count)
+        else:
+            _index_mem = 256
+
+        if "analytics" in self.services:
+            _analytics_mem = int(memory_pool / service_count)
+        else:
+            _analytics_mem = 1024
+
+        if "data" in self.services:
+            _data_mem = int(memory_pool / service_count)
+        else:
+            _data_mem = 256
                 
         self.eventing_quota = str(_eventing_mem)
         self.fts_quota = str(_fts_mem)
         self.index_quota = str(_index_mem)
-        self.analytics_quota = str(analytics_quota)
-        self.data_quota = str(data_quota)
+        self.analytics_quota = str(_analytics_mem)
+        self.data_quota = str(_data_mem)
 
     def get_net_config(self):
         if self.ip_list[0] == "127.0.0.1":
