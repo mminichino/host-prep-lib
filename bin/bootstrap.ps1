@@ -64,7 +64,7 @@ echo "Installing base software packages"
 Invoke-Command {
     scoop install git openssl cmake make jq curl tar gzip netcat -g
     scoop bucket add versions
-    scoop install python311 -g
+    scoop install python312 -g
     scoop bucket add java
     scoop install maven microsoft11-jdk -g
 } *>&1 | Out-File -FilePath $LogFilePath -NoClobber -Append
