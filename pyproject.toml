@@ -1,0 +1,114 @@
+[tool.poetry]
+name = "pyhostprep"
+description = "Couchbase Host Automation Library"
+version = "1.0.57"
+readme = "README.md"
+authors = ["Michael Minichino <info@unix.us.com>"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Topic :: Database",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules"
+]
+keywords = ["couchbase", "devops", "automation"]
+packages = [
+    { include = "pyhostprep" }
+]
+include = [
+    { path = "pyhostprep/data/config/*", format = ["sdist", "wheel"] },
+    { path = "pyhostprep/data/playbooks/*", format = ["sdist", "wheel"] }
+]
+
+[tool.poetry.urls]
+"Homepage" = "https://github.com/mminichino/host-prep-lib"
+
+[tool.poetry.scripts]
+bundlemgr = "pyhostprep.bundlemgr:main"
+swmgr = "pyhostprep.swmgr:main"
+storagemgr = "pyhostprep.storagemgr:main"
+
+[[tool.poetry.source]]
+name = "pypi-public"
+url = "https://pypi.org/simple/"
+
+[tool.poetry.dependencies]
+python = ">=3.8,<4"
+attrs = ">=22.2.0"
+docker = ">=5.0.3"
+ansible = ">=6.7.0"
+ansible-runner = ">=2.3.3"
+requests = ">=2.31.0"
+urllib3 = ">=1.26.16"
+overrides = ">=7.4.0"
+psutil = ">=5.9.5"
+Jinja2 = ">=3.0.0"
+
+[tool.poetry.group.test.dependencies]
+pytest = ">=8.1.1"
+pytest-asyncio = ">=0.23.6"
+pytest-rerunfailures = ">=10.3"
+pytest-mock = ">=3.6.1"
+
+[tool.poetry.group.dev.dependencies]
+bumpversion = "^0.6.0"
+poetry-core = ">=1.9.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "session"
+asyncio_mode = "auto"
+addopts = "-rE --no-header -v -p no:warnings"
+log_file = "pytest.log"
+log_file_level = "DEBUG"
+pythonpath = [
+    ".",
+    "tests"
+]
+testpaths = [
+    "tests",
+]
+python_classes = [
+    "Test*"
+]
+python_files = [
+    "test_[0-9]*.py"
+]
+markers = [
+    "unit_test: marks a test as a unit test",
+    "regression_test: marks a test as a regression test",
+]
+
+[tool.tox]
+requires = ["tox>=4.19"]
+env_list = ["py313", "py312", "py38"]
+no_package = true
+
+[tool.tox.env_run_base]
+skip_install = true
+allowlist_externals = ["poetry"]
+
+[tool.tox.env.py38]
+description = "Posix 3.8 full test"
+env_python = "python3.8"
+commands_pre = [["poetry", "env", "use", "3.8"], ["poetry", "install"]]
+commands = [["poetry", "run", "pytest", "-m", "unit_test"]]
+
+[tool.tox.env.py312]
+description = "Posix 3.12 full test"
+env_python = "python3.12"
+commands_pre = [["poetry", "env", "use", "3.12"], ["poetry", "install"]]
+commands = [["poetry", "run", "pytest", "-m", "unit_test"]]
+
+[tool.tox.env.py313]
+description = "Posix 3.13 full test"
+env_python = "python3.13"
+commands_pre = [["poetry", "env", "use", "3.13"], ["poetry", "install"]]
+commands = [["poetry", "run", "pytest", "-m", "unit_test"]]
