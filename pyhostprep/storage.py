@@ -40,6 +40,8 @@ class StorageManager(object):
                 check_name = f"/dev/{name}"
             except OSError:
                 check_name = device
+            except TypeError:
+                continue
 
             if check_name[-1] == chr(ord('`') + index):
                 return device
