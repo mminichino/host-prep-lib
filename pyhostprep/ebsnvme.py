@@ -14,11 +14,14 @@ the volume.
 
 from __future__ import print_function
 import argparse
+import logging
 from ctypes import Structure, c_uint8, c_uint16, \
         c_uint32, c_uint64, c_char, addressof, sizeof
 from fcntl import ioctl
 import sys
 
+logger = logging.getLogger('hostprep.ebsnvme')
+logger.addHandler(logging.NullHandler())
 NVME_ADMIN_IDENTIFY = 0x06
 NVME_IOCTL_ADMIN_CMD = 0xC0484E41
 AMZN_NVME_VID = 0x1D0F
@@ -121,9 +124,10 @@ class EbsNvmeDevice:
         self.id_ctrl = nvme_identify_controller()
         self._nvme_ioctl(addressof(self.id_ctrl), sizeof(self.id_ctrl))
 
+        logger.debug(f"Vendor ID: 0x{self.id_ctrl.vid:04x} Name: {self.id_ctrl.mn.decode().strip()}")
         if self.id_ctrl.vid != AMZN_NVME_VID or \
                 (self.id_ctrl.mn.decode().strip() != AMZN_NVME_EBS_MN
-                and self.id_ctrl.fr.decode().strip() != AMZN_NVME_EBS_IN):
+                and self.id_ctrl.mn.decode().strip() != AMZN_NVME_EBS_IN):
             raise TypeError("Not an EBS device: '{0}'".format(self.device)) # noqa
 
     def get_volume_id(self):
