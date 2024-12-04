@@ -42,7 +42,10 @@ class StorageManager(object):
                 logger.debug(f"checking device: {device}")
                 dev = EbsNvmeDevice(device)
                 name = dev.get_block_device(stripped=True)
-                check_name = f"/dev/{name}"
+                basename = name.split(':')[-1]
+                if basename == 'none':
+                    continue
+                check_name = f"/dev/{basename}"
             except OSError:
                 check_name = device
             except TypeError:
