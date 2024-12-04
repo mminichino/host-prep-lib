@@ -2,8 +2,12 @@
 ##
 
 import json
+import logging
 from pyhostprep.command import RunShellCommand, RCNotZero
-from pyhostprep.ebsnvme import ebs_nvme_device
+from pyhostprep.ebsnvme import EbsNvmeDevice
+
+logger = logging.getLogger('hostprep.storage')
+logger.addHandler(logging.NullHandler())
 
 
 class StorageMgrError(Exception):
@@ -35,7 +39,8 @@ class StorageManager(object):
     def get_device(self, index: int = 1):
         for device in [d.get('name') for d in self.device_list]:
             try:
-                dev = ebs_nvme_device(device)
+                logger.debug(f"checking device: {device}")
+                dev = EbsNvmeDevice(device)
                 name = dev.get_block_device(stripped=True)
                 check_name = f"/dev/{name}"
             except OSError:
@@ -43,6 +48,7 @@ class StorageManager(object):
             except TypeError:
                 continue
 
+            logger.debug(f"found device: {check_name}")
             if check_name[-1] == chr(ord('`') + index):
                 return device
 

@@ -23,6 +23,7 @@ NVME_ADMIN_IDENTIFY = 0x06
 NVME_IOCTL_ADMIN_CMD = 0xC0484E41
 AMZN_NVME_VID = 0x1D0F
 AMZN_NVME_EBS_MN = "Amazon Elastic Block Store"
+AMZN_NVME_EBS_IN = "Amazon EC2 NVMe Instance Storage"
 
 
 class nvme_admin_command(Structure):
@@ -102,7 +103,7 @@ class nvme_identify_controller(Structure):
                 ("vs", nvme_identify_controller_amzn_vs)]  # Vendor Specific
 
 
-class ebs_nvme_device:
+class EbsNvmeDevice:
     def __init__(self, device):
         self.device = device
         self.ctrl_identify()
@@ -120,9 +121,10 @@ class ebs_nvme_device:
         self.id_ctrl = nvme_identify_controller()
         self._nvme_ioctl(addressof(self.id_ctrl), sizeof(self.id_ctrl))
 
-        if self.id_ctrl.vid != AMZN_NVME_VID \
-                or self.id_ctrl.mn.decode().strip() != AMZN_NVME_EBS_MN:
-            raise TypeError("[ERROR] Not an EBS device: '{0}'".format(self.device)) # noqa
+        if self.id_ctrl.vid != AMZN_NVME_VID or \
+                (self.id_ctrl.mn.decode().strip() != AMZN_NVME_EBS_MN
+                and self.id_ctrl.fr.decode().strip() != AMZN_NVME_EBS_IN):
+            raise TypeError("Not an EBS device: '{0}'".format(self.device)) # noqa
 
     def get_volume_id(self):
         vol = self.id_ctrl.sn.decode()
@@ -133,12 +135,12 @@ class ebs_nvme_device:
         return vol
 
     def get_block_device(self, stripped=False):
-        dev = self.id_ctrl.vs.bdev.decode().strip()
+        device = self.id_ctrl.vs.bdev.decode().strip()
 
-        if stripped and dev.startswith("/dev/"):
-            dev = dev[5:]
+        if stripped and device.startswith("/dev/"):
+            device = device[5:]
 
-        return dev
+        return device
 
 
 if __name__ == "__main__":
@@ -163,7 +165,7 @@ if __name__ == "__main__":
     get_all = not (args.udev or args.volume or args.block_dev)
 
     try:
-        dev = ebs_nvme_device(args.device[0])
+        dev = EbsNvmeDevice(args.device[0])
     except (IOError, TypeError) as err:
         print(err, file=sys.stderr)
         sys.exit(1)

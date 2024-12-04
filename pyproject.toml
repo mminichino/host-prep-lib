@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "pyhostprep"
 description = "Couchbase Host Automation Library"
-version = "1.0.58"
+version = "1.0.59"
 readme = "README.md"
 authors = ["Michael Minichino <info@unix.us.com>"]
 classifiers = [
