@@ -416,6 +416,7 @@ class CouchbaseServer(object):
 
     def node_add(self):
         self.node_init()
+        self.cluster_update()
         services = ','.join(self.services)
 
         cmd = [
@@ -439,6 +440,46 @@ class CouchbaseServer(object):
         self.node_change_group()
 
         return True
+
+    def cluster_update(self):
+        if "data" in self.services:
+            return
+
+        cmd = [
+            "/opt/couchbase/bin/couchbase-cli", "setting-cluster",
+            "--cluster", self.rally_ip_address,
+            "--username", self.username,
+            "--password", self.password,
+        ]
+
+        if "fts" in self.services:
+            cmd += [
+                "--cluster-fts-ramsize", self.fts_quota,
+            ]
+
+        if "index" in self.services:
+            cmd += [
+                "--cluster-index-ramsize", self.index_quota,
+            ]
+
+        if "eventing" in self.services:
+            cmd += [
+                "--cluster-eventing-ramsize", self.eventing_quota,
+            ]
+
+        if "analytics" in self.services:
+            cmd += [
+                "--cluster-analytics-ramsize", self.analytics_quota,
+            ]
+
+        logger.info(f"Updating cluster settings on node {self.rally_ip_address}")
+
+        try:
+            RunShellCommand().cmd_output(cmd, "/var/tmp")
+        except RCNotZero as err:
+            raise ClusterSetupError(f"Cluster update failed: {err}")
+
+        return
 
     def node_external_ip(self):
         if not self.external_ip_address:
