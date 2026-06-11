@@ -1,10 +1,10 @@
 .PHONY:	commit remote patch minor major pypi build publish test
-export PYTHONPATH := $(shell pwd)/test:$(shell pwd):$(PYTHONPATH)
-export PROJECT_NAME := $$(basename $$(pwd))
-export PROJECT_VERSION := $(shell cat VERSION)
+export PYTHONPATH := $(CURDIR)/tests:$(CURDIR):$(PYTHONPATH)
+export PROJECT_NAME := $(notdir $(CURDIR))
+export PROJECT_VERSION := $(shell uv run hatch version)
 
 commit:
-		git commit -am "Version $(shell cat VERSION)"
+		git commit -am "Version $(PROJECT_VERSION)"
 		git push
 remote:
 		git push cblabs main
@@ -15,21 +15,25 @@ minor:
 major:
 		bumpversion --allow-dirty major
 pypi:
-		poetry build
-		poetry publish
+		uv build
+		uv publish
 build:
-		poetry build
+		uv sync --all-groups
+		hatch build
 publish:
-		poetry publish
+		uv publish
 test:
 		python -m pytest tests/test_1.py
-download:
-		$(eval REV_FILE := $(shell ls -tr dist/*.whl | tail -1))
-		cp $(REV_FILE) dist/pyhostprep-latest-py3-none-any.whl
+release:
 		gh release create -R "mminichino/$(PROJECT_NAME)" \
-		-t "Release $(PROJECT_VERSION)" \
-		-n "Release $(PROJECT_VERSION)" \
-		latest \
-		dist/pyhostprep-latest-py3-none-any.whl
+		-t $(PROJECT_VERSION) \
+		-n $(PROJECT_VERSION) \
+		$(PROJECT_VERSION) \
+		"dist/pyhostprep-$(PROJECT_VERSION)-py3-none-any.whl" \
+		"dist/pyhostprep-$(PROJECT_VERSION).tar.gz"
+upload:
+		gh release upload -R "mminichino/$(PROJECT_NAME)" $(PROJECT_VERSION) --clobber \
+		"dist/pyhostprep-$(PROJECT_VERSION)-py3-none-any.whl" \
+		"dist/pyhostprep-$(PROJECT_VERSION).tar.gz"
 recall:
-		gh release delete -R "mminichino/$(PROJECT_NAME)" latest --cleanup-tag -y
+		gh release delete -R "mminichino/$(PROJECT_NAME)" $(PROJECT_VERSION) --cleanup-tag -y

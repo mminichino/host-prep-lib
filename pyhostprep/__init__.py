@@ -1,9 +1,8 @@
 import os
-from pkg_resources import parse_version
 
 _ROOT = os.path.abspath(os.path.dirname(__file__))
-__version__ = "1.0.59"
-VERSION = parse_version(__version__)
+__version__ = "2.0.0a1"
+VERSION = __version__
 
 
 def get_playbook_file(file):

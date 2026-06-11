@@ -10,5 +10,5 @@ scoop install azure-cli -g
 scoop install python38 -g
 scoop install python311 -g
 scoop reset python312
-pip install poetry
+pip install uv
 pip install tox
