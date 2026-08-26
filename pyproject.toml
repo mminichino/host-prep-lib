@@ -31,6 +31,7 @@ dependencies = [
     "psutil>=5.9.5",
     "Jinja2>=3.0.0",
     "typer>=0.26.7",
+    "cryptography>=48.0.0",
 ]
 
 [project.urls]
@@ -50,6 +51,7 @@ test = [
     "pytest-asyncio>=0.23.6",
     "pytest-rerunfailures>=10.3",
     "pytest-mock>=3.6.1",
+    "testcontainers>=4.15.0",
 ]
 
 [build-system]
@@ -86,10 +88,12 @@ python_classes = [
 ]
 python_files = [
     "test_[0-9]*.py",
+    "test_swmgr*.py",
 ]
 markers = [
     "unit_test: marks a test as a unit test",
     "regression_test: marks a test as a regression test",
+    "integration: marks a test as an integration test requiring Docker",
 ]
 
 [tool.tox]

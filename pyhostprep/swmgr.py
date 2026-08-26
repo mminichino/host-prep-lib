@@ -93,6 +93,8 @@ def _build_server_config(
     community: bool,
     private_key: Optional[str],
     options: Optional[str],
+    ca_cert: Optional[str] = None,
+    ca_cert_key: Optional[str] = None,
 ) -> ServerConfig:
     services_list = _parse_csv(services)
     services_list = ["fts" if service == "search" else service for service in services_list]
@@ -114,6 +116,8 @@ def _build_server_config(
         community_edition=community,
         private_key=private_key,
         options=options_list,
+        ca_cert=ca_cert,
+        ca_cert_key=ca_cert_key,
     )
 
 
@@ -138,6 +142,7 @@ class CertContext:
     username: str
     password: str
     ip_address: Optional[str]
+    external_ip_address: Optional[str]
     data_path: str
     filename: Optional[str]
     domain_name: Optional[str]
@@ -146,6 +151,8 @@ class CertContext:
     key_file: Optional[str]
     cert_file: Optional[str]
     base64: bool
+    ca_cert: Optional[str]
+    ca_cert_key: Optional[str]
 
 
 @app.callback()
@@ -202,6 +209,14 @@ def cluster_callback(
         Optional[str],
         typer.Option("-o", "--options", help="Comma-separated extra options"),
     ] = None,
+    ca_cert: Annotated[
+        Optional[str],
+        typer.Option("--ca-cert", help="PEM-formatted cluster CA certificate"),
+    ] = None,
+    ca_cert_key: Annotated[
+        Optional[str],
+        typer.Option("--ca-cert-key", help="PEM-formatted cluster CA private key"),
+    ] = None,
 ) -> None:
     ctx.obj = ClusterContext(
         config=_build_server_config(
@@ -218,6 +233,8 @@ def cluster_callback(
             community,
             private_key,
             options,
+            ca_cert,
+            ca_cert_key,
         )
     )
 
@@ -363,6 +380,10 @@ def cert_callback(
         Optional[str],
         typer.Option("-l", "--ip-address", help="Node IP address"),
     ] = None,
+    external_ip_address: Annotated[
+        Optional[str],
+        typer.Option("-e", "--external-ip-address", help="External IP address"),
+    ] = None,
     data_path: Annotated[
         str,
         typer.Option("-D", "--data-path", help="Output directory for CA files"),
@@ -395,11 +416,20 @@ def cert_callback(
         bool,
         typer.Option("--base64", help="Output CA as base64"),
     ] = False,
+    ca_cert: Annotated[
+        Optional[str],
+        typer.Option("--ca-cert", help="PEM-formatted cluster CA certificate"),
+    ] = None,
+    ca_cert_key: Annotated[
+        Optional[str],
+        typer.Option("--ca-cert-key", help="PEM-formatted cluster CA private key"),
+    ] = None,
 ) -> None:
     ctx.obj = CertContext(
         username=username,
         password=password,
         ip_address=ip_address,
+        external_ip_address=external_ip_address,
         data_path=data_path,
         filename=filename,
         domain_name=domain_name,
@@ -408,6 +438,8 @@ def cert_callback(
         key_file=key_file,
         cert_file=cert_file,
         base64=base64,
+        ca_cert=ca_cert,
+        ca_cert_key=ca_cert_key,
     )
 
 
@@ -468,16 +500,27 @@ def _cert_server(cert_ctx: CertContext) -> CouchbaseServer:
         name="cbserver",
         ip_address=resolved_ip,
         rally_ip_address=resolved_ip,
+        external_ip_address=cert_ctx.external_ip_address,
         services=["data"],
         username=cert_ctx.username,
         password=cert_ctx.password,
         data_path=cert_ctx.data_path,
+        ca_cert=cert_ctx.ca_cert,
+        ca_cert_key=cert_ctx.ca_cert_key,
     )
     return CouchbaseServer(config)
 
 
-@cert_app.command("update")
-def cert_update(ctx: typer.Context) -> None:
+@cert_app.command("cluster-ca")
+def cert_cluster_ca(ctx: typer.Context) -> None:
+    cert_ctx: CertContext = ctx.obj
+    cbs = _cert_server(cert_ctx)
+    logger.info(f"Updating cluster CA on {cbs.ip_address}")
+    cbs.cluster_ca_update()
+
+
+@cert_app.command("node-cert")
+def cert_node_cert(ctx: typer.Context) -> None:
     cert_ctx: CertContext = ctx.obj
     cbs = _cert_server(cert_ctx)
     logger.info(f"Updating node certificate on {cbs.ip_address}")

@@ -23,7 +23,8 @@ build:
 publish:
 		uv publish
 test:
-		python -m pytest tests/test_1.py
+		uv sync --group test
+		uv run pytest tests/test_swmgr_cluster.py -v
 release:
 		gh release create -R "mminichino/$(PROJECT_NAME)" \
 		-t $(PROJECT_VERSION) \

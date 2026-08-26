@@ -41,6 +41,8 @@ Options:
   -C, --community            Community edition
   -K, --private-key          Private key path
   -o, --options              Comma-separated extra options (e.g. memopt)
+      --ca-cert              PEM-formatted cluster CA certificate
+      --ca-cert-key          PEM-formatted cluster CA private key
 ```
 
 Commands:
@@ -72,10 +74,32 @@ swmgr cluster -n cbdb -l 192.168.1.7 -r 192.168.1.5 add
 swmgr cluster -r 192.168.1.5 rebalance
 ```
 
-Create or add a node with an external IP address. The external address is configured as an alternate address, and the node certificate is updated to include it as a subject alternative name when a CA private key is available:
+#### Custom certificates during cluster setup
+
+Custom certificates require a CA certificate and matching private key. Provide them via CLI options or place files on the node:
+
+- `ca.key` — CA private key
+- `ca.pem` or `ca.crt` — CA certificate
+
+Files are searched in the Couchbase inbox, home directory, and data path.
+
+On `cluster create`, if CA materials are present, the cluster CA is loaded and the node certificate is updated after cluster initialization. On `cluster add`, if a CA private key is present, the node certificate is updated using the matching trusted root CA from the cluster. If no materials are provided, Couchbase default certificates are used and an informational message is logged.
+
+Create a cluster with a custom CA:
 
 ```
-swmgr cluster -l 192.168.1.6 -r 192.168.1.5 -e 1.2.3.4 -u user -p password add
+swmgr cluster -n cbdb -l 192.168.1.5 \
+  --ca-cert "$(cat ca.pem)" \
+  --ca-cert-key "$(cat ca.key)" \
+  create
+```
+
+Add a node with an external IP and custom node certificate:
+
+```
+swmgr cluster -l 192.168.1.6 -r 192.168.1.5 -e 1.2.3.4 \
+  --ca-cert-key "$(cat ca.key)" \
+  add
 ```
 
 Update the external IP on an existing node:
@@ -92,34 +116,61 @@ Certificate options are shared by all `cert` subcommands:
 swmgr cert [OPTIONS] COMMAND
 
 Options:
-  -u, --username   Cluster username (default: Administrator)
-  -p, --password   Cluster password (default: password)
-  -l, --ip-address Node IP address (default: auto-detected)
-  -D, --data-path  Output directory for CA files
-  -f, --filename   Output file name
-  -d, --domain     Certificate domain name
-  -A, --alt-names  Certificate alternate names
-  -H, --host-cert  Create hostname certificate
-  -k, --key-file   Private key file
-  -c, --cert-file  Certificate file
-  --base64         Output CA as base64
+  -u, --username             Cluster username (default: Administrator)
+  -p, --password             Cluster password (default: password)
+  -l, --ip-address           Node IP address (default: auto-detected)
+  -e, --external-ip-address  External IP address
+  -D, --data-path            Output directory for CA files
+  -f, --filename             Output file name
+  -d, --domain               Certificate domain name
+  -A, --alt-names            Certificate alternate names
+  -H, --host-cert            Create hostname certificate
+  -k, --key-file             Private key file
+  -c, --cert-file            Certificate file
+  --base64                   Output CA as base64
+      --ca-cert              PEM-formatted cluster CA certificate
+      --ca-cert-key          PEM-formatted cluster CA private key
 ```
 
 Commands:
 
-| Command  | Description |
-|----------|-------------|
-| `key`    | Generate a private key |
-| `create` | Generate a certificate |
-| `user`   | Generate a client certificate (PKCS12) |
-| `ca`     | Generate a certificate authority |
-| `update` | Regenerate and reload the node certificate using the cluster trusted root CA |
+| Command      | Description |
+|--------------|-------------|
+| `key`        | Generate a private key |
+| `create`     | Generate a certificate |
+| `user`       | Generate a client certificate (PKCS12) |
+| `ca`         | Generate a certificate authority |
+| `cluster-ca` | Load a custom cluster CA into the trust store |
+| `node-cert`  | Regenerate and reload the node certificate |
 
-Update the node certificate on the local node. The trusted root CA is fetched from `GET /pools/default/trustedCAs`. The new certificate includes the internal IP and the external IP (if configured) as subject alternative names:
+Generate a CA for use with the cluster:
 
 ```
-swmgr cert -u user -p password update
+swmgr cert ca -D /root
 ```
+
+Load a custom cluster CA (requires CA certificate and private key):
+
+```
+swmgr cert -u user -p password cluster-ca
+```
+
+Or provide PEM content directly:
+
+```
+swmgr cert -u user -p password \
+  --ca-cert "$(cat ca.pem)" \
+  --ca-cert-key "$(cat ca.key)" \
+  cluster-ca
+```
+
+Update the node certificate on the local node. The trusted root CA is fetched from `GET /pools/default/trustedCAs` and must match the provided CA private key. The new certificate includes the internal IP and external IP (if configured) as subject alternative names:
+
+```
+swmgr cert -u user -p password --ca-cert-key "$(cat ca.key)" node-cert
+```
+
+If CA materials are not available when running an explicit `cert` command, an error is logged with instructions on how to provide them.
 
 ### Gateway
 

@@ -23,6 +23,8 @@ class ServerConfig(BaseModel):
     community_edition: bool = False
     private_key: Optional[str] = None
     options: List[str] = Field(default_factory=list)
+    ca_cert: Optional[str] = None
+    ca_cert_key: Optional[str] = None
 
     @property
     def get_values(self):
