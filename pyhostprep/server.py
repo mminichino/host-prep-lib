@@ -191,52 +191,226 @@ class CouchbaseServer(object):
 
         return True
 
+    @staticmethod
+    def _address_alt_names(address: str, name_alt: List[str], ip_alt: List[str]) -> None:
+        if not address.split('.')[-1].isalpha():
+            ip_alt.append(address)
+        else:
+            name_alt.append(address)
+
+    def _cert_alt_names(self, external_ip_address: Optional[str] = None) -> tuple[List[str], List[str]]:
+        name_alt: List[str] = []
+        ip_alt: List[str] = []
+        self._address_alt_names(self.ip_address, name_alt, ip_alt)
+        external_ip = external_ip_address if external_ip_address is not None else self.external_ip_address
+        if external_ip:
+            self._address_alt_names(external_ip, name_alt, ip_alt)
+        return name_alt, ip_alt
+
+    def _ca_candidate_dirs(self) -> List[str]:
+        dirs = [
+            os.path.dirname(self.ca_path),
+            FileManager().get_user_home(),
+            str(Path.home()),
+            self.data_path,
+        ]
+        # Preserve order while removing duplicates
+        seen = set()
+        unique: List[str] = []
+        for path in dirs:
+            if path and path not in seen:
+                seen.add(path)
+                unique.append(path)
+        return unique
+
+    def _ca_key_path(self) -> Optional[str]:
+        for directory in self._ca_candidate_dirs():
+            candidate = os.path.join(directory, "ca.key")
+            if os.path.exists(candidate):
+                return candidate
+        return None
+
+    def _ca_cert_path(self) -> Optional[str]:
+        for directory in self._ca_candidate_dirs():
+            for name in ("ca.pem", "ca.crt"):
+                candidate = os.path.join(directory, name)
+                if os.path.exists(candidate):
+                    return candidate
+        return None
+
+    def _write_and_reload_node_cert(self, node_key: str, node_cert: str) -> None:
+        FileManager().make_dir(self.ca_path, "couchbase", "couchbase", mode=0o700)
+        node_cert_file = os.path.join(os.path.dirname(self.ca_path), "chain.pem")
+        node_key_file = os.path.join(os.path.dirname(self.ca_path), "pkey.key")
+
+        FileManager().write_file(node_key, node_key_file, "couchbase", "couchbase", mode=0o700)
+        FileManager().write_file(node_cert, node_cert_file, "couchbase", "couchbase", mode=0o700)
+
+        api = APISession(self.username, self.password)
+        api.set_host(self.ip_address, 0, 8091)
+
+        logger.info(f"Loading node certificate")
+
+        try:
+            api.api_empty_post("/node/controller/reloadCertificate")
+        except Exception as err:
+            logger.error(f"Failed to load node cert: {err}")
+            raise ClusterSetupError(f"Node cert load failed: {err}")
+
     def host_cert_load(self):
         home_dir = FileManager().get_user_home()
         ca_key = os.path.join(home_dir, "ca.key")
         ca_cert = os.path.join(home_dir, "ca.pem")
         if os.path.exists(ca_key) and os.path.exists(ca_cert):
-            FileManager().make_dir(self.ca_path, "couchbase", "couchbase", mode=0o700)
-
             with open(ca_cert, 'r') as f:
                 ca_cert_pem = f.read()
             with open(ca_key, 'r') as f:
                 ca_key_pem = f.read()
 
-            name_alt = []
-            ip_alt = []
-            if not self.ip_address.split('.')[-1].isalpha():
-                ip_alt.append(self.ip_address)
-            else:
-                name_alt.append(self.ip_address)
-
-            if self.external_ip_address:
-                if not self.external_ip_address.split('.')[-1].isalpha():
-                    ip_alt.append(self.external_ip_address)
-                else:
-                    name_alt.append(self.external_ip_address)
+            name_alt, ip_alt = self._cert_alt_names()
 
             logger.info(f"Generating node certificate")
 
-            node_key, node_cert = CertMgr.certificate_standard(ca_cert_pem, ca_key_pem, "Couchbase Server", alt_name=name_alt, alt_ip_list=ip_alt)
+            node_key, node_cert = CertMgr.certificate_standard(
+                ca_cert_pem, ca_key_pem, "Couchbase Server", alt_name=name_alt, alt_ip_list=ip_alt
+            )
+            self._write_and_reload_node_cert(node_key, node_cert)
 
-            node_cert_file = os.path.join(os.path.dirname(self.ca_path), "chain.pem")
-            node_key_file = os.path.join(os.path.dirname(self.ca_path), "pkey.key")
+        return True
 
-            FileManager().write_file(node_key, node_key_file, "couchbase", "couchbase", mode=0o700)
-            FileManager().write_file(node_cert, node_cert_file, "couchbase", "couchbase", mode=0o700)
+    def trusted_cas_list(self) -> list:
+        api = APISession(self.username, self.password)
+        api.set_host(self.ip_address, 0, 8091)
+        response = api.api_get("/pools/default/trustedCAs")
+        result = response.json()
 
-            api = APISession(self.username, self.password)
-            api.set_host(self.ip_address, 0, 8091)
+        if not isinstance(result, list) or not result:
+            raise ClusterSetupError(f"CA fetch invalid response: response: {result}")
 
-            logger.info(f"Loading node certificate")
+        return result
+
+    def trusted_root_ca_get(self, ca_key_pem: Optional[str] = None) -> str:
+        result = self.trusted_cas_list()
+
+        if ca_key_pem:
+            for entry in result:
+                certificate = entry.get("pem")
+                if certificate and CertMgr.key_matches_cert(ca_key_pem, certificate):
+                    return certificate
+            raise ClusterSetupError("No trusted CA matches the local CA private key")
+
+        if len(result) >= 2:
+            certificate = result[1].get("pem")
+        else:
+            certificate = result[0].get("pem")
+
+        if not certificate:
+            raise ClusterSetupError(f"CA fetch missing certificate PEM: response: {result}")
+
+        return certificate
+
+    def _bootstrap_ca(self) -> None:
+        home_dir = FileManager().get_user_home()
+        ca_key = os.path.join(home_dir, "ca.key")
+        ca_cert = os.path.join(home_dir, "ca.pem")
+
+        if not (os.path.exists(ca_key) and os.path.exists(ca_cert)):
+            logger.info("Generating cluster certificate authority")
+            key_bytes, cert_bytes = CertMgr().certificate_ca()
+            with open(ca_key, 'w') as f:
+                f.write(key_bytes.decode('utf-8'))
+            with open(ca_cert, 'w') as f:
+                f.write(cert_bytes.decode('utf-8'))
+            os.chmod(ca_key, 0o600)
+            os.chmod(ca_cert, 0o600)
+
+        self.cluster_ca_load()
+
+    def _ensure_home_ca(self, ca_key_pem: str, ca_cert_pem: str) -> None:
+        home_dir = FileManager().get_user_home()
+        ca_key = os.path.join(home_dir, "ca.key")
+        ca_cert = os.path.join(home_dir, "ca.pem")
+        with open(ca_key, 'w') as f:
+            f.write(ca_key_pem)
+        with open(ca_cert, 'w') as f:
+            f.write(ca_cert_pem)
+        os.chmod(ca_key, 0o600)
+        os.chmod(ca_cert, 0o600)
+
+    def _resolve_ca_materials(self) -> tuple[str, str]:
+        ca_key_path = self._ca_key_path()
+        ca_cert_path = self._ca_cert_path()
+
+        if ca_key_path:
+            with open(ca_key_path, 'r') as f:
+                ca_key_pem = f.read()
+
+            if ca_cert_path:
+                with open(ca_cert_path, 'r') as f:
+                    ca_cert_pem = f.read()
+                if CertMgr.key_matches_cert(ca_key_pem, ca_cert_pem):
+                    try:
+                        return self.trusted_root_ca_get(ca_key_pem), ca_key_pem
+                    except ClusterSetupError:
+                        logger.info("Local CA not yet trusted by cluster; loading CA")
+                        self._ensure_home_ca(ca_key_pem, ca_cert_pem)
+                        self.cluster_ca_load()
+                        return self.trusted_root_ca_get(ca_key_pem), ca_key_pem
 
             try:
-                api.api_empty_post("/node/controller/reloadCertificate")
-            except Exception as err:
-                logger.error(f"Failed to load node cert: {err}")
-                raise ClusterSetupError(f"Node cert load failed: {err}")
+                return self.trusted_root_ca_get(ca_key_pem), ca_key_pem
+            except ClusterSetupError:
+                logger.info("Local CA key does not match cluster trusted CAs; creating new CA")
 
+        self._bootstrap_ca()
+        home_ca_key = os.path.join(FileManager().get_user_home(), "ca.key")
+        if not os.path.exists(home_ca_key):
+            raise ClusterSetupError("CA private key not found after bootstrap")
+
+        with open(home_ca_key, 'r') as f:
+            ca_key_pem = f.read()
+        return self.trusted_root_ca_get(ca_key_pem), ca_key_pem
+
+    def fetch_node_external_ip(self) -> Optional[str]:
+        api = APISession(self.username, self.password)
+        api.set_host(self.ip_address, 0, 8091)
+        response = api.api_get("/pools/default")
+        for node in response.json().get("nodes", []):
+            hostname = node.get("hostname", "").split(":")[0]
+            if hostname != self.ip_address:
+                continue
+            alternate_addresses = node.get("alternateAddresses", {})
+            external = alternate_addresses.get("external", {})
+            external_hostname = external.get("hostname")
+            if external_hostname:
+                return external_hostname.split(":")[0]
+        return None
+
+    def host_cert_update(self, external_ip_address: Optional[str] = None):
+        ca_cert_pem, ca_key_pem = self._resolve_ca_materials()
+
+        external_ip = external_ip_address
+        if external_ip is None:
+            external_ip = self.external_ip_address or self.fetch_node_external_ip()
+
+        name_alt, ip_alt = self._cert_alt_names(external_ip)
+
+        logger.info(f"Generating node certificate")
+
+        node_key, node_cert = CertMgr.certificate_standard(
+            ca_cert_pem, ca_key_pem, "Couchbase Server", alt_name=name_alt, alt_ip_list=ip_alt
+        )
+        self._write_and_reload_node_cert(node_key, node_cert)
+        return True
+
+    def node_cert_update(self):
+        if self.community_edition:
+            logger.info("cert update: skipping cert update on Community Edition")
+            print("Skipped: node cert update")
+            return True
+
+        self.host_cert_update()
+        print("Success: Node certificate updated")
         return True
 
     def cluster_ca_get(self):
@@ -502,6 +676,25 @@ class CouchbaseServer(object):
 
         return True
 
+    def update_external_ip(self):
+        if not self.external_ip_address:
+            raise ClusterSetupError("External IP address is required")
+
+        logger.info(f"Updating external IP address to {self.external_ip_address}")
+        self.node_external_ip()
+        print("Success: External IP updated")
+        return True
+
+    def _node_cert_for_external_ip(self):
+        if not self.external_ip_address or self.community_edition:
+            return True
+
+        if self._ca_key_path():
+            logger.info("Updating node certificate with external IP alternate name")
+            return self.host_cert_update()
+
+        return self.host_cert_load()
+
     def is_group(self):
         cmd = [
             "/opt/couchbase/bin/couchbase-cli", "group-manage",
@@ -644,6 +837,7 @@ class CouchbaseServer(object):
         if not self.is_cluster():
             logger.info(f"Creating cluster with node {self.rally_ip_address}")
             self.cluster_init()
+            self._node_cert_for_external_ip()
             print("Success: Cluster Initialized")
         else:
             print("Cluster is already configured")
@@ -657,6 +851,7 @@ class CouchbaseServer(object):
                 raise ClusterSetupError(f"can not add node {self.rally_ip_address} rally node is unreachable")
             logger.info(f"Adding cluster node {self.ip_address}")
             self.node_add()
+            self._node_cert_for_external_ip()
             print("Success: Node Added")
         else:
             print("Node is already configured")

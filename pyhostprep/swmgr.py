@@ -137,6 +137,7 @@ class GatewayContext:
 class CertContext:
     username: str
     password: str
+    ip_address: Optional[str]
     data_path: str
     filename: Optional[str]
     domain_name: Optional[str]
@@ -235,10 +236,20 @@ def cluster_create(ctx: typer.Context) -> None:
 
 
 @cluster_app.command("add")
-def cluster_create(ctx: typer.Context) -> None:
+def cluster_add(ctx: typer.Context) -> None:
     cbs = _couchbase_server(ctx)
     logger.info(f"Adding node to cluster")
     cbs.add_node()
+
+
+@cluster_app.command("update")
+def cluster_update(ctx: typer.Context) -> None:
+    config: ServerConfig = ctx.obj.config
+    if not config.external_ip_address:
+        raise typer.BadParameter("--external-ip-address is required for cluster update")
+    cbs = _couchbase_server(ctx)
+    logger.info(f"Updating external IP on node {config.ip_address}")
+    cbs.update_external_ip()
 
 
 @cluster_app.command("rebalance")
@@ -348,6 +359,10 @@ def cert_callback(
     ctx: typer.Context,
     username: Annotated[str, typer.Option("-u", "--username")] = "Administrator",
     password: Annotated[str, typer.Option("-p", "--password")] = "password",
+    ip_address: Annotated[
+        Optional[str],
+        typer.Option("-l", "--ip-address", help="Node IP address"),
+    ] = None,
     data_path: Annotated[
         str,
         typer.Option("-D", "--data-path", help="Output directory for CA files"),
@@ -384,6 +399,7 @@ def cert_callback(
     ctx.obj = CertContext(
         username=username,
         password=password,
+        ip_address=ip_address,
         data_path=data_path,
         filename=filename,
         domain_name=domain_name,
@@ -444,6 +460,28 @@ def cert_ca(ctx: typer.Context) -> None:
         key_file = os.path.join(cert_ctx.data_path, "ca.key")
         cert_file = os.path.join(cert_ctx.data_path, "ca.crt")
         CertMgr().certificate_ca_files(key_file, cert_file)
+
+
+def _cert_server(cert_ctx: CertContext) -> CouchbaseServer:
+    resolved_ip = _resolve_ip_address(cert_ctx.ip_address)
+    config = ServerConfig(
+        name="cbserver",
+        ip_address=resolved_ip,
+        rally_ip_address=resolved_ip,
+        services=["data"],
+        username=cert_ctx.username,
+        password=cert_ctx.password,
+        data_path=cert_ctx.data_path,
+    )
+    return CouchbaseServer(config)
+
+
+@cert_app.command("update")
+def cert_update(ctx: typer.Context) -> None:
+    cert_ctx: CertContext = ctx.obj
+    cbs = _cert_server(cert_ctx)
+    logger.info(f"Updating node certificate on {cbs.ip_address}")
+    cbs.node_cert_update()
 
 
 def main(args: Optional[List[str]] = None) -> None:
