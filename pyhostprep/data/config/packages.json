@@ -242,9 +242,7 @@
           "Base",
           "Chrony",
           "Firewall",
-          "THP",
-          "Swappiness",
-          "Swap"
+          "THP"
         ],
         "extra_vars": [
           "cbs_download_url"
@@ -258,9 +256,7 @@
           "Base",
           "Chrony",
           "Firewall",
-          "THP",
-          "Swappiness",
-          "Swap"
+          "THP"
         ],
         "extra_vars": [
           "cbs_download_url"
@@ -274,9 +270,7 @@
           "Base",
           "Chrony",
           "Firewall",
-          "THP",
-          "Swappiness",
-          "Swap"
+          "THP"
         ],
         "extra_vars": [
           "cbs_download_url"

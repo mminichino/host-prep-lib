@@ -17,7 +17,7 @@
       when: volume_check.rc == 0
     - name: Get Data Device
       ansible.builtin.shell:
-        cmd: storagemgr -D -n 3
+        cmd: storagemgr -D -n 2
       register: data_disk_output
     - set_fact:
         data_disk_device: "{{ data_disk_output.stdout }}"

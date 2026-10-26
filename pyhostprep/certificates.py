@@ -21,6 +21,23 @@ class CertMgr(object):
         pass
 
     @staticmethod
+    def key_matches_cert(key_pem: str, cert_pem: str) -> bool:
+        try:
+            private_key = load_pem_private_key(key_pem.encode(), None, default_backend())
+            certificate = x509.load_pem_x509_certificate(cert_pem.encode(), default_backend())
+            key_public = private_key.public_key().public_bytes(
+                encoding=serialization.Encoding.DER,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo,
+            )
+            cert_public = certificate.public_key().public_bytes(
+                encoding=serialization.Encoding.DER,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo,
+            )
+            return key_public == cert_public
+        except Exception:
+            return False
+
+    @staticmethod
     def private_key(filename: str, size=2048):
         private_key = rsa.generate_private_key(
             public_exponent=65537,

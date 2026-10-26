@@ -3,19 +3,14 @@
 
 import os
 import re
-import attr
 import psutil
 import logging
 import socket
 import time
 import json
-import configparser
 from pathlib import Path
-from functools import cmp_to_key
-from enum import Enum
-from itertools import zip_longest
+from typing import Optional, Sequence, List
 from pyhostprep.httpsessionmgr import APISession
-from typing import Optional, List, Sequence
 from pyhostprep.network import NetworkInfo
 from pyhostprep.command import RunShellCommand, RCNotZero
 from pyhostprep.exception import FatalError
@@ -23,11 +18,22 @@ from pyhostprep.util import FileManager
 from pyhostprep.osfamily import OSFamily
 from pyhostprep.osinfo import OSRelease
 from pyhostprep.certificates import CertMgr
+from pyhostprep.models.server_config import IndexMemoryOption, ServerConfig
 
 logger = logging.getLogger('hostprep.server')
 logger.addHandler(logging.NullHandler())
 CONFIG_DIR = os.path.join(Path.home(), '.swmgr')
 CONFIG_FILE = os.path.join(CONFIG_DIR, 'server.cfg')
+
+CLUSTER_CA_MATERIALS_ERROR = (
+    "CA certificate and private key are required. Provide --ca-cert and --ca-cert-key, "
+    "or place ca.pem/ca.crt and ca.key in the Couchbase inbox, home directory, or data path."
+)
+NODE_CERT_KEY_ERROR = (
+    "CA private key is required. Provide --ca-cert-key or place ca.key in the Couchbase inbox, "
+    "home directory, or data path. The key must match a trusted root CA in the cluster."
+)
+DEFAULT_CLUSTER_CERTS_INFO = "Using cluster default certificates"
 
 
 def service_cmp(a, b):
@@ -45,89 +51,24 @@ class ClusterSetupError(FatalError):
     pass
 
 
-class IndexMemoryOption(Enum):
-    default = 0
-    memopt = 1
-
-
-@attr.s
-class ServerConfig:
-    name: Optional[str] = attr.ib(default=None)
-    ip_list: Optional[List[str]] = attr.ib(default=None)
-    services: Optional[Sequence[str]] = attr.ib(default=("data", "index", "query"))
-    username: Optional[str] = attr.ib(default="Administrator")
-    password: Optional[str] = attr.ib(default="password")
-    host_list: Optional[List[str]] = attr.ib(default=None)
-    service_list: Optional[List[str]] = attr.ib(default=None)
-    index_mem_opt: Optional[IndexMemoryOption] = attr.ib(default=IndexMemoryOption.default)
-    availability_zone: Optional[str] = attr.ib(default="primary")
-    data_path: Optional[str] = attr.ib(default="/opt/couchbase/var/lib/couchbase/data")
-    community_edition: Optional[bool] = attr.ib(default=False)
-    private_key: Optional[str] = attr.ib(default=None)
-    options: Optional[List[str]] = attr.ib(default=[])
-
-    @property
-    def get_values(self):
-        return self.__annotations__
-
-    @property
-    def as_dict(self):
-        return self.__dict__
-
-    @classmethod
-    def create(cls,
-               name: str,
-               ip_list: List[str],
-               services: Sequence[str] = ("data", "index", "query"),
-               username: str = "Administrator",
-               password: str = "password",
-               host_list=None,
-               service_list=None,
-               index_mem_opt: IndexMemoryOption = IndexMemoryOption.default,
-               availability_zone: str = "primary",
-               data_path: str = "/opt/couchbase/var/lib/couchbase/data",
-               community_edition: bool = False,
-               private_key: str = None,
-               options: List[str] = None):
-        if host_list is None:
-            host_list = []
-        return cls(
-            name,
-            ip_list,
-            services,
-            username,
-            password,
-            host_list,
-            service_list,
-            index_mem_opt,
-            availability_zone,
-            data_path,
-            community_edition,
-            private_key,
-            options if options else []
-        )
-
-
 class CouchbaseServer(object):
 
     def __init__(self, config: ServerConfig):
-        self._init_complete = False
-        self.config_data = configparser.ConfigParser()
-        self.cluster_name = config.name
-        ip_list = config.ip_list
-        service_list = config.service_list if config.service_list is not None else []
-        self.username = config.username
-        self.password = config.password
-        host_list = config.host_list if config.host_list is not None else []
-        self.data_path = config.data_path
-        self.index_mem_opt = config.index_mem_opt
-        self.availability_zone = config.availability_zone
-        self.community_edition = config.community_edition
-        self.private_key = config.private_key if config.private_key and config.private_key != 'null' else None
-        self.options = config.options
-
-        if "memopt" in self.options:
-            self.index_mem_opt = IndexMemoryOption.memopt
+        self.cluster_name: str = config.name
+        self.rally_ip_address: str = config.rally_ip_address if config.rally_ip_address else config.ip_address
+        self.ip_address: str = config.ip_address
+        self.external_ip_address: Optional[str] = config.external_ip_address
+        self.services: Sequence[str] = config.services
+        self.username: str = config.username
+        self.password: str = config.password
+        self.data_path: str = config.data_path
+        self.index_mem_opt: IndexMemoryOption = config.index_mem_opt
+        self.server_group: str = config.server_group
+        self.community_edition: bool = config.community_edition
+        self.private_key: Optional[str] = config.private_key
+        self.options: List[str] = config.options
+        self.ca_cert_pem: Optional[str] = config.ca_cert
+        self.ca_cert_key_pem: Optional[str] = config.ca_cert_key
 
         if OSRelease().family == OSFamily.LINUX:
             self.ca_path = r"/opt/couchbase/var/lib/couchbase/inbox/CA"
@@ -138,79 +79,26 @@ class CouchbaseServer(object):
         else:
             raise ClusterSetupError(f"Unknown OS type")
 
-        try:
-            FileManager().make_dir(CONFIG_DIR)
-            self.config_data.read(CONFIG_FILE)
-        except Exception as e:
-            message = f"Failed to make config directory {CONFIG_DIR}: {e}"
-            raise ClusterSetupError(message)
-
-        self.ip_list, self.host_list, self.service_list = self.create_node_lists(ip_list, host_list, service_list)
-
         self.data_quota = None
         self.analytics_quota = None
         self.index_quota = None
         self.fts_quota = None
         self.eventing_quota = None
-        self.internal_ip, self.external_ip, self.external_access, self.rally_ip_address, self.node_index = self.get_net_config()
 
-        try:
-            _services_entry = self.service_list[self.node_index].split(',')
-            _services = _services_entry if _services_entry != ["default"] else ["data", "index", "query"]
-        except IndexError:
-            _services = config.services if config.services != ["default"] else ["data", "index", "query"]
-
-        self.services = ["fts" if e == "search" else e for e in _services]
         self.get_mem_config()
 
-        self.rally_ip_address = self.read_config()
-
-        logger.info(f"Member list: {','.join(self.ip_list)}")
-        logger.info(f"Host list: {','.join(self.host_list) if len(self.host_list) > 0 else 'None'}")
-        logger.info(f"Service list: {':'.join(self.service_list) if len(self.service_list) > 0 else 'None'}")
-        logger.info(f"Internal IP: {self.internal_ip}")
-        logger.info(f"External IP: {self.external_ip}")
-        logger.info(f"External Access: {self.external_access}")
+        logger.info(f"Internal IP: {self.ip_address}")
+        logger.info(f"External IP: {self.external_ip_address}")
         logger.info(f"Rally Host: {self.rally_ip_address}")
-        logger.info(f"Services: {self.config_data.get('cluster', 'services', fallback=','.join(self.services))}")
+        logger.info(f"Services: {','.join(self.services)}")
 
         self.admin_port = 8091
-        if not self.wait_port(self.internal_ip, self.admin_port):
-            logger.error(f"Can not connect to admin port on this host ({self.internal_ip})")
-            raise ClusterSetupError(f"Host {self.internal_ip}:{self.admin_port} is not reachable")
-        if not self.wait_port(self.rally_ip_address, self.admin_port):
+        if not self.wait_port(self.ip_address, self.admin_port):
+            logger.error(f"Can not connect to admin port on this host ({self.ip_address})")
+            raise ClusterSetupError(f"Host {self.ip_address}:{self.admin_port} is not reachable")
+        if self.rally_ip_address and not self.wait_port(self.rally_ip_address, self.admin_port):
             logger.error(f"Can not connect to admin port on rally node {self.rally_ip_address}")
             raise ClusterSetupError(f"Host {self.rally_ip_address}:{self.admin_port} is not reachable")
-
-        self._init_complete = True
-
-    def __del__(self):
-        if self._init_complete:
-            logger.info("Done.")
-            self.write_config()
-
-    def read_config(self):
-        return self.config_data.get('cluster', 'rally_ip_address', fallback=self.rally_ip_address)
-
-    def write_config(self):
-        try:
-            self.config_data.set('cluster', 'rally_ip_address', self.rally_ip_address)
-        except configparser.NoSectionError:
-            self.config_data['cluster'] = dict(rally_ip_address=self.rally_ip_address)
-        with open(CONFIG_FILE, 'w') as configfile:
-            self.config_data.write(configfile)
-
-    @staticmethod
-    def create_node_lists(ip_list, host_list, service_list):
-        service_cmp_key = cmp_to_key(service_cmp)
-        result = list(zip_longest(ip_list, host_list, service_list))
-        result.sort(key=service_cmp_key)
-
-        _ip_list = [e[0] for e in result if e[0] is not None]
-        _host_list = [e[1] for e in result if e[1] is not None]
-        _service_list = [e[2] for e in result if e[2] is not None]
-
-        return _ip_list, _host_list, _service_list
 
     def get_mem_config(self):
         host_mem = psutil.virtual_memory()
@@ -256,35 +144,8 @@ class CouchbaseServer(object):
         self.analytics_quota = str(_analytics_mem)
         self.data_quota = str(_data_mem)
 
-    def get_net_config(self):
-        if self.ip_list[0] == "127.0.0.1":
-            internal_ip = rally_address = "127.0.0.1"
-            external_ip = None
-            external_access = False
-            my_index = 0
-        elif self.host_list and len(self.host_list) > 0:
-            internal_address = NetworkInfo().get_ip_address()
-            my_index = self.ip_list.index(internal_address)
-            internal_ip = self.host_list[my_index]
-            external_ip = None
-            external_access = False
-            rally_address = self.host_list[0]
-            for (ip_address, hostname) in zip(self.ip_list, self.host_list):
-                host_file = '/etc/hosts'
-                entry_string = f"{ip_address} {hostname}"
-                if not FileManager().file_search(host_file, entry_string):
-                    FileManager().file_append(host_file, entry_string)
-        else:
-            external_ip = NetworkInfo().get_pubic_ip_address()
-            internal_ip = NetworkInfo().get_ip_address()
-            my_index = self.ip_list.index(internal_ip)
-            external_access = NetworkInfo().check_port(external_ip, 8091)
-            rally_address = self.ip_list[0]
-
-        return internal_ip, external_ip, external_access, rally_address, my_index
-
     def is_node(self):
-        cmd = [
+        cmd: list[str] = [
             "/opt/couchbase/bin/couchbase-cli", "host-list",
             "--cluster", self.rally_ip_address,
             "--username", self.username,
@@ -297,7 +158,7 @@ class CouchbaseServer(object):
             return False
 
         for item in output:
-            if item[0] == self.internal_ip:
+            if item[0] == self.ip_address:
                 return True
 
         return False
@@ -317,82 +178,243 @@ class CouchbaseServer(object):
 
         return True
 
-    def cluster_ca_load(self):
-        home_dir = FileManager().get_user_home()
-        ca_key = os.path.join(home_dir, "ca.key")
-        ca_cert = os.path.join(home_dir, "ca.pem")
-        if os.path.exists(ca_key) and os.path.exists(ca_cert):
-            ca_cert_file = os.path.join(self.ca_path, "ca.pem")
-            ca_key_file = os.path.join(os.path.dirname(self.ca_path), "ca.key")
-            FileManager().make_dir(self.ca_path, "couchbase", "couchbase", mode=0o700)
-            FileManager().copy_file(ca_key, ca_key_file, "couchbase", "couchbase", mode=0o600)
-            FileManager().copy_file(ca_cert, ca_cert_file, "couchbase", "couchbase", mode=0o600)
+    def cluster_ca_load(self, ca_cert_pem: Optional[str] = None, ca_key_pem: Optional[str] = None):
+        ca_cert_pem = ca_cert_pem or self._resolve_ca_cert_pem()
+        ca_key_pem = ca_key_pem or self._resolve_ca_key_pem()
+        if not (ca_cert_pem and ca_key_pem):
+            return False
 
-            api = APISession(self.username, self.password)
-            api.set_host(self.internal_ip, 0, 8091)
+        if not CertMgr.key_matches_cert(ca_key_pem, ca_cert_pem):
+            raise ClusterSetupError("CA private key does not match CA certificate")
 
-            logger.info(f"Loading cluster certificate authority")
+        ca_cert_file = os.path.join(self.ca_path, "ca.pem")
+        ca_key_file = os.path.join(os.path.dirname(self.ca_path), "ca.key")
+        FileManager().make_dir(self.ca_path, "couchbase", "couchbase", mode=0o700)
+        FileManager().write_file(ca_key_pem, ca_key_file, "couchbase", "couchbase", mode=0o600)
+        FileManager().write_file(ca_cert_pem, ca_cert_file, "couchbase", "couchbase", mode=0o600)
 
-            response = api.api_empty_post("/node/controller/loadTrustedCAs")
-            result = response.json()
+        api = APISession(self.username, self.password)
+        api.set_host(self.ip_address, 0, 8091)
 
-            if not isinstance(result, list) or result[0].get("id") != 1:
-                logger.error(f"Failed to load CA: response: {response.json()}")
-                raise ClusterSetupError(f"CA load failed")
+        logger.info(f"Loading cluster certificate authority")
+
+        response = api.api_empty_post("/node/controller/loadTrustedCAs")
+        result = response.json()
+
+        if not isinstance(result, list) or result[0].get("id") != 1:
+            logger.error(f"Failed to load CA: response: {response.json()}")
+            raise ClusterSetupError(f"CA load failed")
 
         return True
 
-    def host_cert_load(self):
-        home_dir = FileManager().get_user_home()
-        ca_key = os.path.join(home_dir, "ca.key")
-        ca_cert = os.path.join(home_dir, "ca.pem")
-        if os.path.exists(ca_key) and os.path.exists(ca_cert):
-            FileManager().make_dir(self.ca_path, "couchbase", "couchbase", mode=0o700)
+    def cluster_ca_update(self, ca_cert_pem: Optional[str] = None, ca_key_pem: Optional[str] = None):
+        if self.community_edition:
+            logger.info("cluster ca update: skipping on Community Edition")
+            print("Skipped: cluster CA update")
+            return True
 
-            with open(ca_cert, 'r') as f:
-                ca_cert_pem = f.read()
-            with open(ca_key, 'r') as f:
-                ca_key_pem = f.read()
+        ca_cert_pem, ca_key_pem = self._require_cluster_ca_materials(ca_cert_pem, ca_key_pem)
+        self.cluster_ca_load(ca_cert_pem, ca_key_pem)
+        self.cert_wait()
+        print("Success: Cluster CA updated")
+        return True
 
-            name_alt = []
-            ip_alt = []
-            if not self.internal_ip.split('.')[-1].isalpha():
-                ip_alt.append(self.internal_ip)
-            else:
-                name_alt.append(self.internal_ip)
+    @staticmethod
+    def _address_alt_names(address: str, name_alt: List[str], ip_alt: List[str]) -> None:
+        if not address.split('.')[-1].isalpha():
+            ip_alt.append(address)
+        else:
+            name_alt.append(address)
 
-            if self.external_ip:
-                if not self.external_ip.split('.')[-1].isalpha():
-                    ip_alt.append(self.external_ip)
-                else:
-                    name_alt.append(self.external_ip)
+    def _cert_alt_names(self, external_ip_address: Optional[str] = None) -> tuple[List[str], List[str]]:
+        name_alt: List[str] = []
+        ip_alt: List[str] = []
+        self._address_alt_names(self.ip_address, name_alt, ip_alt)
+        external_ip = external_ip_address if external_ip_address is not None else self.external_ip_address
+        if external_ip:
+            self._address_alt_names(external_ip, name_alt, ip_alt)
+        return name_alt, ip_alt
 
-            logger.info(f"Generating node certificate")
+    def _ca_candidate_dirs(self) -> List[str]:
+        dirs = [
+            os.path.dirname(self.ca_path),
+            FileManager().get_user_home(),
+            str(Path.home()),
+            self.data_path,
+        ]
+        # Preserve order while removing duplicates
+        seen = set()
+        unique: List[str] = []
+        for path in dirs:
+            if path and path not in seen:
+                seen.add(path)
+                unique.append(path)
+        return unique
 
-            node_key, node_cert = CertMgr.certificate_standard(ca_cert_pem, ca_key_pem, "Couchbase Server", alt_name=name_alt, alt_ip_list=ip_alt)
+    def _ca_key_path(self) -> Optional[str]:
+        for directory in self._ca_candidate_dirs():
+            candidate = os.path.join(directory, "ca.key")
+            if os.path.exists(candidate):
+                return candidate
+        return None
 
-            node_cert_file = os.path.join(os.path.dirname(self.ca_path), "chain.pem")
-            node_key_file = os.path.join(os.path.dirname(self.ca_path), "pkey.key")
+    def _ca_cert_path(self) -> Optional[str]:
+        for directory in self._ca_candidate_dirs():
+            for name in ("ca.pem", "ca.crt"):
+                candidate = os.path.join(directory, name)
+                if os.path.exists(candidate):
+                    return candidate
+        return None
 
-            FileManager().write_file(node_key, node_key_file, "couchbase", "couchbase", mode=0o700)
-            FileManager().write_file(node_cert, node_cert_file, "couchbase", "couchbase", mode=0o700)
+    def _resolve_ca_cert_pem(self, ca_cert_pem: Optional[str] = None) -> Optional[str]:
+        if ca_cert_pem:
+            return ca_cert_pem
+        if self.ca_cert_pem:
+            return self.ca_cert_pem
+        ca_cert_path = self._ca_cert_path()
+        if ca_cert_path:
+            with open(ca_cert_path, 'r') as f:
+                return f.read()
+        return None
 
-            api = APISession(self.username, self.password)
-            api.set_host(self.internal_ip, 0, 8091)
+    def _resolve_ca_key_pem(self, ca_key_pem: Optional[str] = None) -> Optional[str]:
+        if ca_key_pem:
+            return ca_key_pem
+        if self.ca_cert_key_pem:
+            return self.ca_cert_key_pem
+        ca_key_path = self._ca_key_path()
+        if ca_key_path:
+            with open(ca_key_path, 'r') as f:
+                return f.read()
+        return None
 
-            logger.info(f"Loading node certificate")
+    def has_cluster_ca_materials(self) -> bool:
+        return bool(self._resolve_ca_cert_pem() and self._resolve_ca_key_pem())
 
-            try:
-                api.api_empty_post("/node/controller/reloadCertificate")
-            except Exception as err:
-                logger.error(f"Failed to load node cert: {err}")
-                raise ClusterSetupError(f"Node cert load failed: {err}")
+    def has_node_cert_key(self) -> bool:
+        return bool(self._resolve_ca_key_pem())
 
+    def _require_cluster_ca_materials(
+        self,
+        ca_cert_pem: Optional[str] = None,
+        ca_key_pem: Optional[str] = None,
+    ) -> tuple[str, str]:
+        cert = self._resolve_ca_cert_pem(ca_cert_pem)
+        key = self._resolve_ca_key_pem(ca_key_pem)
+        if not cert or not key:
+            logger.error(CLUSTER_CA_MATERIALS_ERROR)
+            raise ClusterSetupError(CLUSTER_CA_MATERIALS_ERROR)
+        return cert, key
+
+    def _require_node_cert_key(self, ca_key_pem: Optional[str] = None) -> str:
+        key = self._resolve_ca_key_pem(ca_key_pem)
+        if not key:
+            logger.error(NODE_CERT_KEY_ERROR)
+            raise ClusterSetupError(NODE_CERT_KEY_ERROR)
+        return key
+
+    def _write_and_reload_node_cert(self, node_key: str, node_cert: str) -> None:
+        FileManager().make_dir(self.ca_path, "couchbase", "couchbase", mode=0o700)
+        node_cert_file = os.path.join(os.path.dirname(self.ca_path), "chain.pem")
+        node_key_file = os.path.join(os.path.dirname(self.ca_path), "pkey.key")
+
+        FileManager().write_file(node_key, node_key_file, "couchbase", "couchbase", mode=0o700)
+        FileManager().write_file(node_cert, node_cert_file, "couchbase", "couchbase", mode=0o700)
+
+        api = APISession(self.username, self.password)
+        api.set_host(self.ip_address, 0, 8091)
+
+        logger.info(f"Loading node certificate")
+
+        try:
+            api.api_empty_post("/node/controller/reloadCertificate")
+        except Exception as err:
+            logger.error(f"Failed to load node cert: {err}")
+            raise ClusterSetupError(f"Node cert load failed: {err}")
+
+    def host_cert_load(self, ca_cert_pem: Optional[str] = None, ca_key_pem: Optional[str] = None):
+        ca_cert_pem, ca_key_pem = self._require_cluster_ca_materials(ca_cert_pem, ca_key_pem)
+
+        name_alt, ip_alt = self._cert_alt_names()
+
+        logger.info(f"Generating node certificate")
+
+        node_key, node_cert = CertMgr.certificate_standard(
+            ca_cert_pem, ca_key_pem, "Couchbase Server", alt_name=name_alt, alt_ip_list=ip_alt
+        )
+        self._write_and_reload_node_cert(node_key, node_cert)
+        return True
+
+    def trusted_cas_list(self) -> list:
+        api = APISession(self.username, self.password)
+        api.set_host(self.ip_address, 0, 8091)
+        response = api.api_get("/pools/default/trustedCAs")
+        result = response.json()
+
+        if not isinstance(result, list) or not result:
+            raise ClusterSetupError(f"CA fetch invalid response: response: {result}")
+
+        return result
+
+    def trusted_root_ca_get(self, ca_key_pem: Optional[str] = None) -> str:
+        result = self.trusted_cas_list()
+
+        if ca_key_pem:
+            for entry in result:
+                certificate = entry.get("pem")
+                if certificate and CertMgr.key_matches_cert(ca_key_pem, certificate):
+                    return certificate
+            raise ClusterSetupError("No trusted CA matches the local CA private key")
+
+        if len(result) >= 2:
+            certificate = result[1].get("pem")
+        else:
+            certificate = result[0].get("pem")
+
+        if not certificate:
+            raise ClusterSetupError(f"CA fetch missing certificate PEM: response: {result}")
+
+        return certificate
+
+    def fetch_node_external_ip(self) -> Optional[str]:
+        api = APISession(self.username, self.password)
+        api.set_host(self.ip_address, 0, 8091)
+        response = api.api_get("/pools/default")
+        for node in response.json().get("nodes", []):
+            hostname = node.get("hostname", "").split(":")[0]
+            if hostname != self.ip_address:
+                continue
+            alternate_addresses = node.get("alternateAddresses", {})
+            external = alternate_addresses.get("external", {})
+            external_hostname = external.get("hostname")
+            if external_hostname:
+                return external_hostname.split(":")[0]
+        return None
+
+    def node_cert_update(self, ca_key_pem: Optional[str] = None):
+        if self.community_edition:
+            logger.info("node cert update: skipping on Community Edition")
+            print("Skipped: node certificate update")
+            return True
+
+        ca_key_pem = self._require_node_cert_key(ca_key_pem)
+        ca_cert_pem = self.trusted_root_ca_get(ca_key_pem)
+
+        external_ip = self.external_ip_address or self.fetch_node_external_ip()
+        name_alt, ip_alt = self._cert_alt_names(external_ip)
+
+        logger.info(f"Generating node certificate")
+
+        node_key, node_cert = CertMgr.certificate_standard(
+            ca_cert_pem, ca_key_pem, "Couchbase Server", alt_name=name_alt, alt_ip_list=ip_alt
+        )
+        self._write_and_reload_node_cert(node_key, node_cert)
+        print("Success: Node certificate updated")
         return True
 
     def cluster_ca_get(self):
         api = APISession(self.username, self.password)
-        api.set_host(self.internal_ip, 0, 8091)
+        api.set_host(self.ip_address, 0, 8091)
         response = api.api_get("/pools/default/trustedCAs")
         result = response.json()
 
@@ -407,24 +429,25 @@ class CouchbaseServer(object):
         return certificate
 
     def cert_wait(self, op_retry=15, factor=0.5):
-        home_dir = FileManager().get_user_home()
-        ca_key = os.path.join(home_dir, "ca.key")
-        ca_cert = os.path.join(home_dir, "ca.pem")
-        if os.path.exists(ca_key) and os.path.exists(ca_cert):
-            for retry_number in range(op_retry):
-                try:
-                    self.cluster_ca_get()
-                except Exception as err:
-                    n_retry = retry_number + 1
-                    if n_retry == op_retry:
-                        raise ClusterSetupError(f"Cert check failed on {self.internal_ip}: {err}")
-                    logger.info(f"Retrying cert check on {self.internal_ip}")
-                    wait = factor
-                    wait *= n_retry
-                    time.sleep(wait)
+        if not self.has_cluster_ca_materials():
+            return False
+
+        for retry_number in range(op_retry):
+            try:
+                self.cluster_ca_get()
+                return True
+            except Exception as err:
+                n_retry = retry_number + 1
+                if n_retry == op_retry:
+                    raise ClusterSetupError(f"Cert check failed on {self.ip_address}: {err}")
+                logger.info(f"Retrying cert check on {self.ip_address}")
+                wait = factor
+                wait *= n_retry
+                time.sleep(wait)
+        return False
 
     def cluster_ca_setup(self):
-        if self.internal_ip != NetworkInfo().ip_lookup(self.rally_ip_address):
+        if self.ip_address != NetworkInfo().ip_lookup(self.rally_ip_address):
             logger.info("ca setup: skipping node")
             return True
 
@@ -433,8 +456,11 @@ class CouchbaseServer(object):
             print("Skipped: ca setup")
             return True
 
-        self.cluster_ca_load()
-        self.cert_wait()
+        if not self.cluster_ca_load():
+            logger.error(CLUSTER_CA_MATERIALS_ERROR)
+            raise ClusterSetupError(CLUSTER_CA_MATERIALS_ERROR)
+
+        return self.cert_wait()
 
     def node_cert_setup(self):
         if self.community_edition:
@@ -442,10 +468,10 @@ class CouchbaseServer(object):
             print("Skipped: node cert setup")
             return True
 
-        self.host_cert_load()
+        return self.node_cert_update()
 
     def cluster_cert_auth_setup(self):
-        if self.internal_ip != NetworkInfo().ip_lookup(self.rally_ip_address):
+        if self.ip_address != NetworkInfo().ip_lookup(self.rally_ip_address):
             logger.info("cert auth: skipping node")
             return True
 
@@ -494,17 +520,17 @@ class CouchbaseServer(object):
 
         cmd = [
             "/opt/couchbase/bin/couchbase-cli", "node-init",
-            "--cluster", self.internal_ip,
+            "--cluster", self.ip_address,
             "--username", self.username,
             "--password", self.password,
-            "--node-init-hostname", self.internal_ip,
+            "--node-init-hostname", self.ip_address,
             "--node-init-data-path", self.data_path,
             "--node-init-index-path", self.data_path,
             "--node-init-analytics-path", self.data_path,
             "--node-init-eventing-path", self.data_path,
         ]
 
-        logger.info(f"Initializing node {self.internal_ip}")
+        logger.info(f"Initializing node {self.ip_address}")
 
         try:
             RunShellCommand().cmd_output(cmd, "/var/tmp")
@@ -550,7 +576,7 @@ class CouchbaseServer(object):
                 "--services", services
             ]
 
-        logger.info(f"Creating cluster on node {self.internal_ip}")
+        logger.info(f"Creating cluster on node {self.rally_ip_address}")
         edition = "Community" if self.community_edition else "Enterprise"
         logger.info(f"Server Edition: {edition}")
 
@@ -561,15 +587,11 @@ class CouchbaseServer(object):
 
         self.node_change_group()
 
-        try:
-            self.config_data.set('cluster', 'services', services)
-        except configparser.NoSectionError:
-            self.config_data['cluster'] = dict(services=services)
-
         return True
 
     def node_add(self):
         self.node_init()
+        self.cluster_update()
         services = ','.join(self.services)
 
         cmd = [
@@ -579,11 +601,11 @@ class CouchbaseServer(object):
             "--password", self.password,
             "--server-add-username", self.username,
             "--server-add-password", self.password,
-            "--server-add", self.internal_ip,
+            "--server-add", self.ip_address,
             "--services", services
         ]
 
-        logger.info(f"Adding node {self.internal_ip} to cluster at {self.rally_ip_address}")
+        logger.info(f"Adding node {self.ip_address} to cluster at {self.rally_ip_address}")
 
         try:
             RunShellCommand().cmd_output(cmd, "/var/tmp")
@@ -592,25 +614,60 @@ class CouchbaseServer(object):
 
         self.node_change_group()
 
-        try:
-            self.config_data.set('cluster', 'services', services)
-        except configparser.NoSectionError:
-            self.config_data['cluster'] = dict(services=services)
-
         return True
 
+    def cluster_update(self):
+        if "data" in self.services:
+            return
+
+        cmd = [
+            "/opt/couchbase/bin/couchbase-cli", "setting-cluster",
+            "--cluster", self.rally_ip_address,
+            "--username", self.username,
+            "--password", self.password,
+        ]
+
+        if "fts" in self.services:
+            cmd += [
+                "--cluster-fts-ramsize", self.fts_quota,
+            ]
+
+        if "index" in self.services:
+            cmd += [
+                "--cluster-index-ramsize", self.index_quota,
+            ]
+
+        if "eventing" in self.services:
+            cmd += [
+                "--cluster-eventing-ramsize", self.eventing_quota,
+            ]
+
+        if "analytics" in self.services:
+            cmd += [
+                "--cluster-analytics-ramsize", self.analytics_quota,
+            ]
+
+        logger.info(f"Updating cluster settings on node {self.rally_ip_address}")
+
+        try:
+            RunShellCommand().cmd_output(cmd, "/var/tmp")
+        except RCNotZero as err:
+            raise ClusterSetupError(f"Cluster update failed: {err}")
+
+        return
+
     def node_external_ip(self):
-        if not self.external_access:
+        if not self.external_ip_address:
             return True
 
         cmd = [
             "/opt/couchbase/bin/couchbase-cli", "setting-alternate-address",
-            "--cluster", self.internal_ip,
+            "--cluster", self.ip_address,
             "--username", self.username,
             "--password", self.password,
             "--set",
-            "--node", self.internal_ip,
-            "--hostname", self.external_ip,
+            "--node", self.ip_address,
+            "--hostname", self.external_ip_address,
         ]
 
         try:
@@ -620,6 +677,37 @@ class CouchbaseServer(object):
 
         return True
 
+    def update_external_ip(self):
+        if not self.external_ip_address:
+            raise ClusterSetupError("External IP address is required")
+
+        logger.info(f"Updating external IP address to {self.external_ip_address}")
+        self.node_external_ip()
+        print("Success: External IP updated")
+        return True
+
+    def _maybe_apply_custom_certs_on_create(self):
+        if self.community_edition:
+            return
+
+        if self.has_cluster_ca_materials():
+            logger.info("Updating cluster CA and node certificate")
+            self.cluster_ca_load()
+            self.cert_wait()
+            self.node_cert_update()
+        else:
+            logger.info(DEFAULT_CLUSTER_CERTS_INFO)
+
+    def _maybe_apply_custom_certs_on_add(self):
+        if self.community_edition:
+            return
+
+        if self.has_node_cert_key():
+            logger.info("Updating node certificate")
+            self.node_cert_update()
+        else:
+            logger.info(DEFAULT_CLUSTER_CERTS_INFO)
+
     def is_group(self):
         cmd = [
             "/opt/couchbase/bin/couchbase-cli", "group-manage",
@@ -627,7 +715,7 @@ class CouchbaseServer(object):
             "--username", self.username,
             "--password", self.password,
             "--list",
-            "--group-name", self.availability_zone
+            "--group-name", self.server_group
         ]
 
         try:
@@ -644,7 +732,7 @@ class CouchbaseServer(object):
             "--username", self.username,
             "--password", self.password,
             "--create",
-            "--group-name", self.availability_zone
+            "--group-name", self.server_group
         ]
 
         try:
@@ -663,7 +751,7 @@ class CouchbaseServer(object):
             name = item.get('name', '')
             for node in item.get('nodes', []):
                 node_ip = node.get('hostname').split(':')[0]
-                if node_ip == self.internal_ip:
+                if node_ip == self.ip_address:
                     return name
 
         return None
@@ -673,7 +761,7 @@ class CouchbaseServer(object):
             logger.info("Skipping node server group assignment on Community Edition")
             return True
         current_group = self.get_node_group()
-        if current_group == self.availability_zone:
+        if current_group == self.server_group:
             return True
 
         if not self.is_group():
@@ -684,9 +772,9 @@ class CouchbaseServer(object):
             "--cluster", self.rally_ip_address,
             "--username", self.username,
             "--password", self.password,
-            "--move-servers", self.internal_ip,
+            "--move-servers", self.ip_address,
             "--from-group", current_group,
-            "--to-group", self.availability_zone
+            "--to-group", self.server_group
         ]
 
         for retry_number in range(retry_count + 1):
@@ -700,19 +788,13 @@ class CouchbaseServer(object):
                 wait = factor
                 wait *= (retry_number + 1)
                 time.sleep(wait)
+        return False
 
     def rebalance(self, retry_count=10, factor=0.5):
-        if self.internal_ip != NetworkInfo().ip_lookup(self.rally_ip_address):
-            logger.info("rebalance: skipping node")
-            return True
-
         if self.community_edition:
             logger.info("rebalance: skipping rebalance on Community Edition")
             print("Skipped: Rebalance")
             return True
-
-        if not self.cluster_wait(min_nodes=len(self.ip_list)):
-            raise ClusterSetupError("rebalance: not all nodes joined the cluster")
 
         cmd = [
             "/opt/couchbase/bin/couchbase-cli", "rebalance",
@@ -734,6 +816,7 @@ class CouchbaseServer(object):
                 wait = factor
                 wait *= (retry_number + 1)
                 time.sleep(wait)
+        return False
 
     def cluster_wait(self, retry_count=30, factor=0.5, min_nodes=1):
         for retry_number in range(retry_count + 1):
@@ -753,8 +836,9 @@ class CouchbaseServer(object):
                 wait = factor
                 wait *= (retry_number + 1)
                 time.sleep(wait)
+        return None
 
-    def bootstrap(self):
+    def create_cluster(self):
         logger.info(f"Data path      : {self.data_path}")
         logger.info(f"Services       : {','.join(self.services)}")
         logger.info(f"Data quota     : {self.data_quota}")
@@ -763,15 +847,24 @@ class CouchbaseServer(object):
         logger.info(f"FTS quota      : {self.fts_quota}")
         logger.info(f"Eventing quota : {self.eventing_quota}")
 
-        if self.internal_ip == self.rally_ip_address and not self.is_cluster():
-            logger.info(f"Creating rally node {self.rally_ip_address}")
+        if not self.is_cluster():
+            logger.info(f"Creating cluster with node {self.rally_ip_address}")
             self.cluster_init()
+            self._maybe_apply_custom_certs_on_create()
             print("Success: Cluster Initialized")
-        elif not self.is_node():
+        else:
+            print("Cluster is already configured")
+
+    def add_node(self):
+        logger.info(f"Data path: {self.data_path}")
+        logger.info(f"Services : {','.join(self.services)}")
+
+        if not self.is_node():
             if not self.cluster_wait():
-                raise ClusterSetupError(f"can not add node {self.internal_ip} rally node is unreachable")
-            logger.info(f"Creating cluster node {self.internal_ip}")
+                raise ClusterSetupError(f"can not add node {self.rally_ip_address} rally node is unreachable")
+            logger.info(f"Adding cluster node {self.ip_address}")
             self.node_add()
+            self._maybe_apply_custom_certs_on_add()
             print("Success: Node Added")
         else:
             print("Node is already configured")
@@ -792,3 +885,4 @@ class CouchbaseServer(object):
                 wait = factor
                 wait *= (retry_number + 1)
                 time.sleep(wait)
+        return None
