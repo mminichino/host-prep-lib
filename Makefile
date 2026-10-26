@@ -21,7 +21,9 @@ build:
 		uv sync --all-groups
 		hatch build
 publish:
-		uv publish
+		rm -rf dist/
+		hatch build
+		hatch publish
 test:
 		uv sync --group test
 		uv run pytest tests/test_swmgr_cluster.py -v
