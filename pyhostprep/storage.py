@@ -3,15 +3,26 @@
 
 import json
 import logging
+import re
 from pyhostprep.command import RunShellCommand, RCNotZero
 from pyhostprep.ebsnvme import EbsNvmeDevice
 
 logger = logging.getLogger('hostprep.storage')
 logger.addHandler(logging.NullHandler())
 
+_NVME_NAMESPACE = re.compile(r"nvme\d+n(\d+)$")
+
 
 class StorageMgrError(Exception):
     pass
+
+
+def _matches_disk_index(device_name: str, index: int) -> bool:
+    basename = device_name.rsplit("/", 1)[-1]
+    match = _NVME_NAMESPACE.fullmatch(basename)
+    if match:
+        return int(match.group(1)) == index
+    return bool(basename) and basename[-1] == chr(ord('`') + index)
 
 
 class StorageManager(object):
@@ -46,13 +57,11 @@ class StorageManager(object):
                 if basename == 'none':
                     continue
                 check_name = f"/dev/{basename}"
-            except OSError:
+            except (OSError, TypeError):
                 check_name = device
-            except TypeError:
-                continue
 
             logger.debug(f"found device: {check_name}")
-            if check_name[-1] == chr(ord('`') + index):
+            if _matches_disk_index(check_name, index):
                 return device
 
         return None
